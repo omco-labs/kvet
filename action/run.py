@@ -7,8 +7,8 @@ from typing import Tuple
 
 import httpx
 
-# reusing SyncLocalGitRepo from vet.git to compute merge base
-from vet.git import SyncLocalGitRepo
+# reusing SyncLocalGitRepo from kvet.git to compute merge base
+from kvet.git import SyncLocalGitRepo
 
 
 def get_env(name: str, required: bool = True) -> str:
@@ -77,7 +77,7 @@ def build_vet_args(goal: str, merge_base: str) -> list[str]:
 
 def run_vet(args: list[str]) -> Tuple[dict, int]:
     result = subprocess.run(
-        ["vet"] + args,
+        ["kvet"] + args,
         stdout=subprocess.PIPE,
         stderr=None,
         text=True,
@@ -92,7 +92,7 @@ def run_vet(args: list[str]) -> Tuple[dict, int]:
     try:
         review_json = json.loads(result.stdout)
     except json.JSONDecodeError:
-        print("::error::Failed to parse vet JSON output")
+        print("::error::Failed to parse kvet JSON output")
         print(result.stdout)
         sys.exit(1)
 

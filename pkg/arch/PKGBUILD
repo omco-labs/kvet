@@ -1,13 +1,13 @@
 # Maintainer:
-pkgname=verify-everything
-pkgver=0.2.15
+pkgname=kvet
+pkgver=0.1.0
 pkgrel=1
-pkgdesc='LLM-based code review tool that finds issues tests and linters miss'
+pkgdesc='Kiro-only LLM-based code review tool that finds issues tests and linters miss'
 arch=('any')
-url='https://github.com/imbue-ai/vet'
+url='https://github.com/omco-labs/kvet'
 license=('AGPL-3.0-only')
 depends=('python>=3.11' 'git')
-install=verify-everything.install
+install=kvet.install
 source=("$url/archive/refs/tags/v$pkgver.tar.gz")
 sha512sums=('SKIP')
 
@@ -17,7 +17,7 @@ package() {
 
     python -m venv "$_venv"
 
-    "$_venv/bin/pip" install --no-warn-script-location "$srcdir/vet-$pkgver"
+    "$_venv/bin/pip" install --no-warn-script-location "$srcdir/kvet-$pkgver"
 
     "$_venv/bin/pip" uninstall -y pip setuptools 2>/dev/null || true
 
@@ -32,5 +32,5 @@ package() {
     find "$_venv/bin" -maxdepth 1 -type f -exec sed -i "s|$pkgdir||g" {} +
 
     install -d "$pkgdir/usr/bin"
-    ln -s "$_installdir/bin/vet" "$pkgdir/usr/bin/vet"
+    ln -s "$_installdir/bin/kvet" "$pkgdir/usr/bin/kvet"
 }

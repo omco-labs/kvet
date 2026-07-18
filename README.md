@@ -1,50 +1,40 @@
 <p align="center">
-  <a href="https://github.com/imbue-ai/vet">
-    <img alt="Vet: Verify Everything" src="https://raw.githubusercontent.com/imbue-ai/vet/main/images/Vet.svg" width="21%">
+  <a href="https://github.com/omco-labs/kvet">
+    <img alt="Kvet" src="https://raw.githubusercontent.com/imbue-ai/vet/main/images/Vet.svg" width="21%">
   </a>
 </p>
 
 <p align="center">
-  <a href="https://pypi.python.org/pypi/verify-everything/"><img src="https://img.shields.io/pypi/v/verify-everything.svg" alt="PyPi"></a>
   <a href="https://www.gnu.org/licenses/agpl-3.0"><img src="https://img.shields.io/badge/License-AGPL_v3-blue.svg" alt="License: AGPL v3"></a>
-  <img src="https://github.com/imbue-ai/vet/actions/workflows/test-unit.yml/badge.svg" alt="Build Status">
-  <a href="https://discord.gg/sBAVvHPUTE"><img src="https://img.shields.io/badge/Discord-Join%20us-5865F2?logo=discord&logoColor=white" alt="Discord"></a>
+  <img src="https://github.com/omco-labs/kvet/actions/workflows/test-unit.yml/badge.svg" alt="Build Status">
 </p>
 
-<p align="center">Vet is a standalone verification tool for <b>code changes</b> and <b>coding agent behavior</b>.</p>
+<p align="center">Kvet is a standalone verification tool for <b>code changes</b> and <b>coding agent behavior</b>, specialized for the <a href="https://kiro.dev">Kiro CLI</a>.</p>
 
-## Why Vet
+> **Note**: kvet is a standalone fork of [imbue-ai/vet](https://github.com/imbue-ai/vet), specialized for the Kiro CLI. The Claude Code, Codex, and OpenCode agent harnesses from upstream have been removed; Kiro is the only agent harness. Kvet is licensed under the AGPL-3.0, the same license as upstream vet.
+
+## Why Kvet
 
 - **Reviews intent and code**: checks agent conversations for goal adherence and code changes for correctness.
 - **Runs anywhere**: from the terminal, as an agent skill, or in CI.
 - **Bring-your-own-model**: works with any provider using your own API keys.
-- **Works with existing subscriptions**: supports Kiro subscriptions using [`--agentic`](#usage).
+- **Works with your Kiro subscription**: routes analysis through the Kiro CLI using [`--agentic`](#usage).
 - **Free and open source**: no account, fees, or data collection. Requests go directly to your inference provider. Licensed under the AGPL-3.0.
 
-<p align="center">
-  <a href="https://github.com/imbue-ai/vet">
-    <img alt="Vet: Verify Everything" src="https://raw.githubusercontent.com/imbue-ai/vet/main/images/vet_example.png" width="100%">
-  </a>
-</p>
+## Using Kvet with Coding Agents
 
-## Using Vet with Coding Agents
-
-Vet includes an agent skill. When installed, agents will proactively run vet after code changes to find issues with the new code and mismatches between the user's request and the agent's actions.
+Kvet includes an agent skill. When installed, agents will proactively run kvet after code changes to find issues with the new code and mismatches between the user's request and the agent's actions.
 
 ### Install the skill
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/imbue-ai/vet/main/install-skill.sh | bash
+curl -fsSL https://raw.githubusercontent.com/omco-labs/kvet/main/install-skill.sh | bash
 ```
 
 You will be prompted to choose between:
 
-- **Project level**: installs into `.agents/skills/vet/`, `.opencode/skills/vet/`, `.claude/skills/vet/`, `.codex/skills/vet/`, and `.kiro/skills/vet/` at the repo root (run from your repo directory)
-- **User level**: installs into `~/.agents/`, `~/.opencode/`, `~/.claude/`, `~/.codex/`, and `~/.kiro/` skill directories, discovered globally by all agents
-
-### Demo
-
-![demo](https://raw.githubusercontent.com/imbue-ai/vet/main/images/demo.gif)
+- **Project level**: installs into `.agents/skills/kvet/` and `.kiro/skills/kvet/` at the repo root (run from your repo directory)
+- **User level**: installs into `~/.agents/` and `~/.kiro/` skill directories, discovered globally
 
 <details>
 <summary>Manual installation</summary>
@@ -54,11 +44,11 @@ You will be prompted to choose between:
 From the root of your git repo:
 
 ```bash
-for dir in .agents .opencode .claude .codex .kiro; do
-  mkdir -p "$dir/skills/vet/scripts"
-  for file in SKILL.md scripts/export_opencode_session.py scripts/export_codex_session.py scripts/export_claude_code_session.py scripts/export_kiro_session.py; do
-    curl -fsSL "https://raw.githubusercontent.com/imbue-ai/vet/main/skills/vet/$file" \
-      -o "$dir/skills/vet/$file"
+for dir in .agents .kiro; do
+  mkdir -p "$dir/skills/kvet/scripts"
+  for file in SKILL.md scripts/export_kiro_session.py; do
+    curl -fsSL "https://raw.githubusercontent.com/omco-labs/kvet/main/skills/kvet/$file" \
+      -o "$dir/skills/kvet/$file"
   done
 done
 ```
@@ -66,11 +56,11 @@ done
 #### User Level
 
 ```bash
-for dir in ~/.agents ~/.opencode ~/.claude ~/.codex ~/.kiro; do
-  mkdir -p "$dir/skills/vet/scripts"
-  for file in SKILL.md scripts/export_opencode_session.py scripts/export_codex_session.py scripts/export_claude_code_session.py scripts/export_kiro_session.py; do
-    curl -fsSL "https://raw.githubusercontent.com/imbue-ai/vet/main/skills/vet/$file" \
-      -o "$dir/skills/vet/$file"
+for dir in ~/.agents ~/.kiro; do
+  mkdir -p "$dir/skills/kvet/scripts"
+  for file in SKILL.md scripts/export_kiro_session.py; do
+    curl -fsSL "https://raw.githubusercontent.com/omco-labs/kvet/main/skills/kvet/$file" \
+      -o "$dir/skills/kvet/$file"
   done
 done
 ```
@@ -84,49 +74,51 @@ The `--history-loader` option executes the specified shell command as the curren
 ## Install the CLI
 
 ```bash
-pip install verify-everything
+pip install kvet
 ```
 
 Or with [pipx](https://pipx.pypa.io/):
 
 ```bash
-pipx install verify-everything
+pipx install kvet
 ```
 
 Or with [uv](https://docs.astral.sh/uv/):
 
 ```bash
-uv tool install verify-everything
+uv tool install kvet
 ```
 
 ### Usage
 
-Run Vet in the current repo:
+Run Kvet in the current repo:
 
 ```bash
-vet "Implement X without breaking Y"
+kvet "Implement X without breaking Y"
 ```
 
 Compare against a base ref/commit:
 
 ```bash
-vet "Refactor storage layer" --base-commit main
+kvet "Refactor storage layer" --base-commit main
 ```
 
 Use the Kiro CLI instead of LLM APIs:
 
 ```bash
-vet "Implement X without breaking Y" --agentic
+kvet "Implement X without breaking Y" --agentic
 ```
+
+In agentic mode, `--model` is forwarded to the Kiro CLI. Model IDs come from `kiro-cli chat --list-models` (e.g. `claude-haiku-4.5` for a cheaper judge than the default `auto`).
 
 ## GitHub PRs (Actions)
 
-Vet reviews pull requests using a reusable GitHub Action.
+Kvet reviews pull requests using a reusable GitHub Action.
 
-Create `.github/workflows/vet.yml`:
+Create `.github/workflows/kvet.yml`:
 
 ```yaml
-name: Vet
+name: Kvet
 
 permissions:
   contents: read
@@ -137,7 +129,7 @@ on:
     types: [opened, edited, synchronize, reopened]
 
 jobs:
-  vet:
+  kvet:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     env:
@@ -147,18 +139,16 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
-      - uses: imbue-ai/vet@main
+      - uses: omco-labs/kvet@main
         with:
           agentic: false
 ```
 
-The action handles Python setup, vet installation, merge base computation, and posting the review to the PR. `ANTHROPIC_API_KEY` must be set as a repository secret when using Anthropic models (the default). See [`action.yml`](https://github.com/imbue-ai/vet/blob/main/action.yml) for all available inputs.
+The action handles Python setup, kvet installation, merge base computation, and posting the review to the PR. `ANTHROPIC_API_KEY` must be set as a repository secret when using Anthropic models (the default). Agentic mode requires the Kiro CLI to be installed and authenticated on the runner. See [`action.yml`](https://github.com/omco-labs/kvet/blob/main/action.yml) for all available inputs.
 
 ## How it works
 
-Vet snapshots the repo and diff, optionally adds a goal and agent conversation, runs LLM checks, then filters/deduplicates findings into a final list of issues.
-
-![architecture](https://raw.githubusercontent.com/imbue-ai/vet/main/images/architecture.svg)
+Kvet snapshots the repo and diff, optionally adds a goal and agent conversation, runs LLM checks, then filters/deduplicates findings into a final list of issues.
 
 ## Output & exit codes
 
@@ -176,10 +166,10 @@ Output formats:
 
 ### Model configuration
 
-Vet supports custom model definitions using OpenAI-compatible endpoints via JSON config files searched in:
+Kvet supports custom model definitions using OpenAI-compatible endpoints via JSON config files searched in:
 
-- `$XDG_CONFIG_HOME/vet/models.json` (or `~/.config/vet/models.json`)
-- `.vet/models.json` at your repo root
+- `$XDG_CONFIG_HOME/kvet/models.json` (or `~/.config/kvet/models.json`)
+- `.kvet/models.json` at your repo root
 
 #### Example `models.json`
 
@@ -213,40 +203,40 @@ Vet supports custom model definitions using OpenAI-compatible endpoints via JSON
 Then:
 
 ```bash
-vet "Harden error handling" --model gpt-5.2
+kvet "Harden error handling" --model gpt-5.2
 ```
 
 ### Model registry
 
-Vet maintains a remote model registry with community-contributed model definitions. To fetch the latest definitions without upgrading vet:
+Kvet maintains a remote model registry with community-contributed model definitions. To fetch the latest definitions without upgrading kvet:
 
 ```bash
-vet --update-models
+kvet --update-models
 ```
 
-This downloads model definitions from the [registry](https://github.com/imbue-ai/vet/blob/main/registry/models.json) and caches them locally at `~/.cache/vet/remote_models.json`. Once cached, registry models appear in `vet --list-models` and can be used with `--model` like any other model.
+This downloads model definitions from the [registry](https://github.com/omco-labs/kvet/blob/main/registry/models.json) and caches them locally at `~/.cache/kvet/remote_models.json`. Once cached, registry models appear in `kvet --list-models` and can be used with `--model` like any other model.
 
 Model resolution priority (highest to lowest):
-1. User config (`.vet/models.json` or `~/.config/vet/models.json`)
+1. User config (`.kvet/models.json` or `~/.config/kvet/models.json`)
 2. Builtin models (Anthropic, OpenAI, Gemini)
 3. Registry models (cached via `--update-models`)
 
-See [`registry/CONTRIBUTING.md`](https://github.com/imbue-ai/vet/blob/main/registry/CONTRIBUTING.md) for information about contributing model definitions to the registry.
+See [`registry/CONTRIBUTING.md`](https://github.com/omco-labs/kvet/blob/main/registry/CONTRIBUTING.md) for information about contributing model definitions to the registry.
 
 ### Configuration profiles (TOML)
 
-Vet supports named profiles so teams can standardize CI usage without long CLI invocations.
+Kvet supports named profiles so teams can standardize CI usage without long CLI invocations.
 
 Profiles set defaults like model choice, enabled issue codes, output format, and thresholds.
 
-See [the example](https://github.com/imbue-ai/vet/blob/main/.vet/configs.toml) in this project.
+See [the example](https://github.com/omco-labs/kvet/blob/main/.kvet/configs.toml) in this project.
 
 ### Custom issue guides
 
 You can customize the guide text for the issue codes via `guides.toml`. Guide files are loaded from:
 
-- `$XDG_CONFIG_HOME/vet/guides.toml` (or `~/.config/vet/guides.toml`)
-- `.vet/guides.toml` at your repo root
+- `$XDG_CONFIG_HOME/kvet/guides.toml` (or `~/.config/kvet/guides.toml`)
+- `.kvet/guides.toml` at your repo root
 
 #### Example `guides.toml`
 
@@ -266,14 +256,12 @@ replace = """
 """
 ```
 
-Section keys must be valid issue codes (`vet --list-issue-codes`). Each section supports three optional fields: `prefix` (prepends to built-in guide), `suffix` (appends to built-in guide), and `replace` (fully replaces the built-in guide). `prefix` and `suffix` can be used together, but `replace` is mutually exclusive with the other two. Guide text should be formatted as a list.
+Section keys must be valid issue codes (`kvet --list-issue-codes`). Each section supports three optional fields: `prefix` (prepends to built-in guide), `suffix` (appends to built-in guide), and `replace` (fully replaces the built-in guide). `prefix` and `suffix` can be used together, but `replace` is mutually exclusive with the other two. Guide text should be formatted as a list.
 
-## Community
+## Attribution
 
-New to Vet? [Read the launch post](https://imbue.com/product/vet/) for an intro and 2-minute demo.
-
-Join the [Imbue Discord](https://discord.gg/sBAVvHPUTE) for discussion, questions, and support. For bug reports and feature requests, please use [GitHub Issues](https://github.com/imbue-ai/vet/issues).
+Kvet is a fork of [vet](https://github.com/imbue-ai/vet) by [Imbue](https://imbue.com). For bug reports and feature requests for kvet, please use [GitHub Issues](https://github.com/omco-labs/kvet/issues).
 
 ## License
 
-This project is licensed under the [GNU Affero General Public License v3.0 (AGPL-3.0-only)](https://github.com/imbue-ai/vet/blob/main/LICENSE).
+This project is licensed under the [GNU Affero General Public License v3.0 (AGPL-3.0-only)](https://github.com/omco-labs/kvet/blob/main/LICENSE).

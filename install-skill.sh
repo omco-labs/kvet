@@ -1,36 +1,32 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO="imbue-ai/vet"
+REPO="omco-labs/kvet"
 BRANCH="main"
-BASE_URL="https://raw.githubusercontent.com/${REPO}/${BRANCH}/skills/vet"
+BASE_URL="https://raw.githubusercontent.com/${REPO}/${BRANCH}/skills/kvet"
 FILES=(
   "SKILL.md"
-  "scripts/export_opencode_session.py"
-  "scripts/export_codex_session.py"
-  "scripts/export_claude_code_session.py"
-  "scripts/export_gemini_cli_session.py"
   "scripts/export_kiro_session.py"
 )
 
 echo ""
-echo "  Vet Skill Installer"
+echo "  Kvet Skill Installer"
 echo "  --------------------"
 echo ""
-echo "  [1] Project level  - install into the current repo (.agents/, .opencode/, .claude/, .codex/, and .kiro/)"
-echo "  [2] User level     - install into your home directory (~/.agents/, ~/.opencode/, ~/.claude/, ~/.codex/, ~/.kiro/)"
+echo "  [1] Project level  - install into the current repo (.agents/ and .kiro/)"
+echo "  [2] User level     - install into your home directory (~/.agents/ and ~/.kiro/)"
 echo ""
 
-printf "  Choose [1/2]: " 
+printf "  Choose [1/2]: "
 read -r choice </dev/tty
 
 case "$choice" in
   1)
-    dirs=(".agents" ".opencode" ".claude" ".codex" ".kiro")
+    dirs=(".agents" ".kiro")
     label="project"
     ;;
   2)
-    dirs=("$HOME/.agents" "$HOME/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.kiro")
+    dirs=("$HOME/.agents" "$HOME/.kiro")
     label="user"
     ;;
   *)
@@ -42,21 +38,21 @@ esac
 echo ""
 
 for dir in "${dirs[@]}"; do
-  mkdir -p "$dir/skills/vet/scripts"
+  mkdir -p "$dir/skills/kvet/scripts"
   for file in "${FILES[@]}"; do
-    printf "  Downloading %s -> %s/skills/vet/%s\n" "$file" "$dir" "$file"
-    curl -fsSL "${BASE_URL}/${file}" -o "$dir/skills/vet/$file"
+    printf "  Downloading %s -> %s/skills/kvet/%s\n" "$file" "$dir" "$file"
+    curl -fsSL "${BASE_URL}/${file}" -o "$dir/skills/kvet/$file"
   done
 done
 
 echo ""
-echo "  Done! Vet skill installed at the ${label} level."
+echo "  Done! Kvet skill installed at the ${label} level."
 
 if [ "$label" = "project" ]; then
   echo ""
   echo "  Installed to:"
   for dir in "${dirs[@]}"; do
-    echo "    $dir/skills/vet/"
+    echo "    $dir/skills/kvet/"
   done
   echo ""
   echo "  You may want to commit these files to your repo."

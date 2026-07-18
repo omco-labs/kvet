@@ -1,17 +1,11 @@
 FROM debian:bookworm-slim
 
-ARG INSTALL_CLAUDE=false
-
-# OpenCode is included for in-container development and agentic verification.
+# NOTE: Agentic verification requires the Kiro CLI (`kiro-cli`), which is not
+# installed here. Install and authenticate it inside the container if needed.
 
 RUN apt-get update \
- && apt-get install -y npm git curl \
- && npm install -g opencode-ai @openai/codex \
+ && apt-get install -y git curl \
  && curl -LsSf https://astral.sh/uv/install.sh | sh
 
 WORKDIR /app
 RUN git config --global --add safe.directory /app
-
-RUN if [ "$INSTALL_CLAUDE" = "true" ]; then \
-      npm install -g @anthropic-ai/claude-code; \
-fi
