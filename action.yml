@@ -8,7 +8,7 @@ branding:
 
 inputs:
   agentic:
-    description: "Enable agentic mode (Will use Claude Code as the default agent harness)"
+    description: "Enable agentic mode (uses the Kiro CLI, which must be available on the runner)"
     required: false
     default: "false"
   model:
@@ -64,16 +64,8 @@ runs:
       with:
         python-version: "3.11"
 
-    - name: Setup Node.js
-      if: inputs.agentic == 'true'
-      uses: actions/setup-node@v4
-      with:
-        node-version: "20"
-
-    - name: Install Claude Code
-      if: inputs.agentic == 'true'
-      shell: bash
-      run: npm install -g @anthropic-ai/claude-code
+    # NOTE: Agentic mode requires the Kiro CLI (`kiro-cli`) to be installed and
+    # authenticated on the runner; this action does not install it.
 
     - name: Install vet
       shell: bash

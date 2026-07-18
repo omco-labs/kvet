@@ -70,22 +70,6 @@ class AgentToolName(enum.StrEnum):
     OTHER = "other"  # Catch-all for unknown/custom tools
 
 
-# TODO: these are not, in the strict sense, read-only; perhaps we should have finer gradations
-READ_ONLY_TOOLS = (
-    AgentToolName.TASK,
-    AgentToolName.READ,
-    AgentToolName.GLOB,
-    AgentToolName.GREP,
-    AgentToolName.LS,
-    AgentToolName.BASH,
-    AgentToolName.NOTEBOOK_READ,
-    AgentToolName.TODO_READ,
-    AgentToolName.TODO_WRITE,
-    AgentToolName.WEB_FETCH,
-    AgentToolName.WEB_SEARCH,
-)
-
-
 # Content block types
 class AgentTextBlock(SerializableModel):
     """Text content block.

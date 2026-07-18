@@ -18,7 +18,7 @@
 - **Reviews intent and code**: checks agent conversations for goal adherence and code changes for correctness.
 - **Runs anywhere**: from the terminal, as an agent skill, or in CI.
 - **Bring-your-own-model**: works with any provider using your own API keys.
-- **Works with existing subscriptions**: supports Anthropic, OpenAI, and Kiro subscriptions using [`--agentic`](#usage).
+- **Works with existing subscriptions**: supports Kiro subscriptions using [`--agentic`](#usage).
 - **Free and open source**: no account, fees, or data collection. Requests go directly to your inference provider. Licensed under the AGPL-3.0.
 
 <p align="center">
@@ -113,10 +113,10 @@ Compare against a base ref/commit:
 vet "Refactor storage layer" --base-commit main
 ```
 
-Use Claude Code, Codex, OpenCode, or Kiro CLI instead of LLM APIs (`--agent-harness`: `claude`, `codex`, `opencode`, `kiro`):
+Use the Kiro CLI instead of LLM APIs:
 
 ```bash
-vet "Implement X without breaking Y" --agentic --agent-harness claude
+vet "Implement X without breaking Y" --agentic
 ```
 
 ## GitHub PRs (Actions)

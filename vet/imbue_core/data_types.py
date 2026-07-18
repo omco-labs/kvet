@@ -168,9 +168,6 @@ class AgenticPhase(StrEnum):
 
 
 class AgentHarnessType(StrEnum):
-    CLAUDE = "claude"
-    CODEX = "codex"
-    OPENCODE = "opencode"
     KIRO = "kiro"
 
 

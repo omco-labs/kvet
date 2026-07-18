@@ -117,8 +117,7 @@ Vet analyzes the full git diff from the base commit. This may include changes fr
 - `--confidence-threshold N`: Minimum confidence 0.0-1.0 (default: 0.8)
 - `--output-format FORMAT`: Output as `text`, `json`, or `github`
 - `--quiet`: Suppress status messages and 'No issues found.'
-- `--agentic`: Mode that routes analysis through the locally installed Claude Code, Codex, OpenCode, or Kiro CLI instead of calling the API directly. Try this if vet fails due to missing API keys. This is slower so it is not the default, but it often results in higher precision issue identification. `--model` is forwarded to the harness but not validated by vet, as vet doesn't know which models each harness supports.
-- `--agent-harness`: The four options for this are `codex`, `claude`, `opencode`, and `kiro`. Claude Code is the default. For `kiro`, model IDs come from `kiro-cli chat --list-models` (e.g. `claude-haiku-4.5` for a cheaper judge than the default `auto`).
+- `--agentic`: Mode that routes analysis through the locally installed Kiro CLI instead of calling the API directly. Try this if vet fails due to missing API keys. This is slower so it is not the default, but it often results in higher precision issue identification. `--model` is forwarded to the Kiro CLI but not validated by vet, as vet doesn't know which models the Kiro CLI supports. Model IDs come from `kiro-cli chat --list-models` (e.g. `claude-haiku-4.5` for a cheaper judge than the default `auto`).
 - `--help`: Show comprehensive list of options
 
 

@@ -36,7 +36,7 @@ class VetConfig(SerializableModel):
     max_identifier_spend_dollars: float | None = None
     max_output_tokens: int = 20000
     enable_parallel_agentic_issue_identification: bool = False
-    agent_harness_type: AgentHarnessType = AgentHarnessType.CLAUDE
+    agent_harness_type: AgentHarnessType = AgentHarnessType.KIRO
     # Raw model name passed to the external agent CLI in agentic mode.
     # When None the CLI uses its own configured default.
     agent_model_name: str | None = None

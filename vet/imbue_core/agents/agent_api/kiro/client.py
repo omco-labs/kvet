@@ -175,9 +175,7 @@ class KiroClient(RealAgentClient[KiroOptions]):
             if path.exists() and path.is_file():
                 return str(path)
 
-        raise AgentCLINotFoundError(
-            "Kiro CLI not found. Ensure it is installed and available on your PATH, or specify a different harness with --agent-harness."
-        )
+        raise AgentCLINotFoundError("Kiro CLI not found. Ensure it is installed and available on your PATH.")
 
     @classmethod
     def _build_cli_cmd(cls, options: KiroOptions) -> list[str]:

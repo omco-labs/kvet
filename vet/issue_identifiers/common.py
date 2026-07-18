@@ -12,19 +12,14 @@ from pydantic import Field
 from pydantic import PrivateAttr
 
 from vet.imbue_core.agents.agent_api.api import get_agent_client
-from vet.imbue_core.agents.agent_api.claude.data_types import ClaudeCodeOptions
-from vet.imbue_core.agents.agent_api.codex.data_types import CodexOptions
 from vet.imbue_core.agents.agent_api.data_types import AgentAssistantMessage
 from vet.imbue_core.agents.agent_api.data_types import AgentMessage
 from vet.imbue_core.agents.agent_api.data_types import AgentOptions
 from vet.imbue_core.agents.agent_api.data_types import AgentResultMessage
 from vet.imbue_core.agents.agent_api.data_types import AgentTextBlock
-from vet.imbue_core.agents.agent_api.data_types import AgentToolName
-from vet.imbue_core.agents.agent_api.data_types import READ_ONLY_TOOLS
 from vet.imbue_core.agents.agent_api.errors import AgentCLINotFoundError
 from vet.imbue_core.agents.agent_api.errors import AgentProcessError
 from vet.imbue_core.agents.agent_api.kiro.data_types import KiroOptions
-from vet.imbue_core.agents.agent_api.opencode.data_types import OpenCodeOptions
 from vet.imbue_core.agents.llm_apis.anthropic_data_types import AnthropicCachingInfo
 from vet.imbue_core.agents.llm_apis.data_types import CostedLanguageModelResponse
 from vet.imbue_core.async_monkey_patches import log_exception
@@ -204,28 +199,9 @@ def get_agent_options(cwd: Path | None, model_name: str | None, agent_harness_ty
     do **not** validate or remap the model here — the external CLI is the
     authority on which models it supports.
     """
-    # NOTE: This if/else is intentionally simple. We're unlikely to support many harness types,
-    # but if we do, this should be refactored into a registry or factory pattern.
-    if agent_harness_type == AgentHarnessType.CODEX:
-        return CodexOptions(
-            cwd=cwd,
-            model=model_name,
-            sandbox_mode="read-only",
-        )
-    if agent_harness_type == AgentHarnessType.OPENCODE:
-        return OpenCodeOptions(
-            cwd=cwd,
-            model=model_name,
-        )
-    if agent_harness_type == AgentHarnessType.KIRO:
-        return KiroOptions(
-            cwd=cwd,
-            model=model_name,
-        )
-    return ClaudeCodeOptions(
+    assert agent_harness_type == AgentHarnessType.KIRO, f"Unsupported agent harness type: {agent_harness_type}"
+    return KiroOptions(
         cwd=cwd,
-        permission_mode="dontAsk",
-        allowed_tools=list(READ_ONLY_TOOLS) + [AgentToolName.BASH],
         model=model_name,
     )
 
