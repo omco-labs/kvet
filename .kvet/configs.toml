@@ -3,7 +3,8 @@ confidence_threshold = 0.9
 max_workers = 4
 quiet = true
 base_commit = "main"
-model = "opus"
+agentic = true
+model = "haiku"          # kiro claude-haiku-4.5 via alias
 
 [security]
 enabled_issue_codes = ["hardcoded_secret", "insecure_code", "race_condition", "resource_leakage"]
@@ -11,5 +12,5 @@ confidence_threshold = 0.7
 
 [high-precision]
 confidence_threshold = 0.7
-temperature = 1.0
-model = "gpt-5.2"
+agentic = true
+model = "opus"           # kiro has no opus tier today; aliased to its strongest model (claude-sonnet-4.5)
