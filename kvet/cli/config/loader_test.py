@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from pydantic import ValidationError
 
 from kvet.cli.config.loader import ConfigLoadError
 from kvet.cli.config.loader import _load_single_config_file
@@ -16,8 +17,6 @@ from kvet.cli.config.loader import get_models_by_provider_from_config
 from kvet.cli.config.loader import get_provider_for_model
 from kvet.cli.config.loader import get_xdg_config_home
 from kvet.cli.config.loader import load_models_config
-from kvet.cli.config.loader import load_registry_config
-from kvet.cli.config.loader import update_remote_registry_cache
 from kvet.cli.config.schema import ModelConfig
 from kvet.cli.config.schema import ModelsConfig
 from kvet.cli.config.schema import ProviderConfig
@@ -173,7 +172,7 @@ def test_load_models_config_loads_project_config(tmp_path: Path) -> None:
     config_data = {
         "providers": {
             "project-provider": {
-                "base_url": "http://project:8080/v1",
+                "base_url": "http://localhost:8081/v1",
                 "api_key_env": "PROJECT_KEY",
                 "models": {
                     "project-model": {
@@ -203,7 +202,7 @@ def test_load_models_config_project_overrides_global(tmp_path: Path) -> None:
                 "providers": {
                     "shared-provider": {
                         "name": "Global Name",
-                        "base_url": "http://global:8080/v1",
+                        "base_url": "http://localhost:8080/v1",
                         "api_key_env": "GLOBAL_KEY",
                         "models": {
                             "global-model": {
@@ -228,7 +227,7 @@ def test_load_models_config_project_overrides_global(tmp_path: Path) -> None:
                 "providers": {
                     "shared-provider": {
                         "name": "Project Name",
-                        "base_url": "http://project:8080/v1",
+                        "base_url": "http://localhost:8081/v1",
                         "api_key_env": "PROJECT_KEY",
                         "models": {
                             "project-model": {
@@ -247,7 +246,73 @@ def test_load_models_config_project_overrides_global(tmp_path: Path) -> None:
         result = load_models_config(repo_path=repo_path)
 
     assert result.providers["shared-provider"].name == "Project Name"
-    assert result.providers["shared-provider"].base_url == "http://project:8080/v1"
+    assert result.providers["shared-provider"].base_url == "http://localhost:8081/v1"
+
+
+# ---------------------------------------------------------------------------
+# Localhost-only model policy
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "base_url",
+    [
+        "http://localhost:8080/v1",
+        "http://localhost/v1",
+        "https://localhost:11434/v1",
+        "http://127.0.0.1:8080/v1",
+        "https://127.0.0.1/v1",
+        "http://[::1]:8080/v1",
+        "https://[::1]/v1",
+    ],
+)
+def test_provider_config_accepts_localhost_base_urls(base_url: str) -> None:
+    provider = ProviderConfig(base_url=base_url)
+    assert provider.base_url == base_url
+
+
+@pytest.mark.parametrize(
+    "base_url",
+    [
+        "https://api.example.com/v1",
+        "https://api.remote-llm-provider.example/v1/",
+        "http://remote:8080/v1",
+        "http://192.168.1.10:8080/v1",
+        "http://10.0.0.5/v1",
+        "https://[2001:db8::1]:8080/v1",
+        "http://localhost.example.com/v1",
+    ],
+)
+def test_provider_config_rejects_remote_base_urls(base_url: str) -> None:
+    with pytest.raises(ValidationError) as exc_info:
+        ProviderConfig(base_url=base_url)
+    assert "localhost" in str(exc_info.value)
+    assert "--agentic" in str(exc_info.value)
+
+
+def test_load_single_config_file_rejects_remote_provider(tmp_path: Path) -> None:
+    config_file = tmp_path / "models.json"
+    config_data = {
+        "providers": {
+            "remote-provider": {
+                "name": "Remote Provider",
+                "base_url": "https://api.example.com/v1",
+                "api_key_env": "REMOTE_KEY",
+                "models": {
+                    "remote-model": {
+                        "context_window": 128000,
+                        "max_output_tokens": 16384,
+                        "supports_temperature": True,
+                    }
+                },
+            }
+        }
+    }
+    config_file.write_text(json.dumps(config_data))
+
+    with pytest.raises(ConfigLoadError) as exc_info:
+        _load_single_config_file(config_file)
+    assert "localhost" in str(exc_info.value)
 
 
 def test_get_model_ids_from_config_extracts_all_ids() -> None:
@@ -419,11 +484,11 @@ def test_get_models_by_provider_groups_models() -> None:
                     ),
                 },
             ),
-            "openrouter": ProviderConfig(
-                base_url="https://openrouter.ai/api/v1",
-                api_key_env="OPENROUTER_KEY",
+            "vllm": ProviderConfig(
+                base_url="http://localhost:8000/v1",
+                api_key_env="VLLM_KEY",
                 models={
-                    "anthropic/claude-3": ModelConfig(
+                    "local/custom-model": ModelConfig(
                         context_window=200000,
                         max_output_tokens=16384,
                         supports_temperature=True,
@@ -438,152 +503,8 @@ def test_get_models_by_provider_groups_models() -> None:
     assert "Ollama Local" in result
     assert set(result["Ollama Local"]) == {"llama3.2:latest", "qwen:7b"}
 
-    assert "openrouter" in result
-    assert result["openrouter"] == ["anthropic/claude-3"]
-
-
-_REMOTE_PROVIDER_JSON = json.dumps(
-    {
-        "providers": {
-            "remote-provider": {
-                "base_url": "http://remote:8080/v1",
-                "api_key_env": "REMOTE_KEY",
-                "models": {
-                    "remote-model": {
-                        "context_window": 128000,
-                        "max_output_tokens": 16384,
-                        "supports_temperature": True,
-                    }
-                },
-            }
-        }
-    }
-)
-
-
-def test_update_remote_registry_cache_fetches_and_writes(tmp_path: Path, make_mock_response) -> None:
-    mock_response = make_mock_response(_REMOTE_PROVIDER_JSON.encode())
-
-    env = {"XDG_CACHE_HOME": str(tmp_path)}
-    with patch.dict(os.environ, env):
-        with patch("kvet.cli.config.loader.urllib.request.urlopen", return_value=mock_response):
-            cache_path, config = update_remote_registry_cache()
-
-    assert cache_path.exists()
-    assert json.loads(cache_path.read_text())["providers"]["remote-provider"]
-    assert "remote-provider" in config.providers
-
-
-def test_update_remote_registry_cache_respects_custom_url(tmp_path: Path, make_mock_response) -> None:
-    custom_url = "https://example.com/custom/models.json"
-    mock_response = make_mock_response(_REMOTE_PROVIDER_JSON.encode())
-
-    env = {
-        "XDG_CACHE_HOME": str(tmp_path),
-        "KVET_REGISTRY_URL": custom_url,
-    }
-    with patch.dict(os.environ, env):
-        with patch(
-            "kvet.cli.config.loader.urllib.request.urlopen",
-            return_value=mock_response,
-        ) as mock_urlopen:
-            update_remote_registry_cache()
-
-    call_args = mock_urlopen.call_args
-    assert call_args[0][0].full_url == custom_url
-
-
-def test_update_remote_registry_cache_raises_on_network_error(tmp_path: Path) -> None:
-    env = {"XDG_CACHE_HOME": str(tmp_path)}
-    with patch.dict(os.environ, env):
-        with patch(
-            "kvet.cli.config.loader.urllib.request.urlopen",
-            side_effect=OSError("no network"),
-        ):
-            with pytest.raises(OSError):
-                update_remote_registry_cache()
-
-
-def test_update_remote_registry_cache_rejects_invalid_json(tmp_path: Path, make_mock_response) -> None:
-    mock_response = make_mock_response(b"<html>Not Found</html>")
-
-    env = {"XDG_CACHE_HOME": str(tmp_path)}
-    with patch.dict(os.environ, env):
-        with patch(
-            "kvet.cli.config.loader.urllib.request.urlopen",
-            return_value=mock_response,
-        ):
-            with pytest.raises(ConfigLoadError, match="invalid data"):
-                update_remote_registry_cache()
-
-    cache_file = tmp_path / "kvet" / "remote_models.json"
-    assert not cache_file.exists()
-
-
-def test_load_models_config_does_not_include_registry(tmp_path: Path) -> None:
-    cache_dir = tmp_path / "cache" / "kvet"
-    cache_dir.mkdir(parents=True)
-    cache_file = cache_dir / "remote_models.json"
-    cache_file.write_text(
-        json.dumps(
-            {
-                "providers": {
-                    "remote-only": {
-                        "base_url": "http://remote:8080/v1",
-                        "models": {
-                            "remote-model": {
-                                "context_window": 64000,
-                                "max_output_tokens": 8192,
-                                "supports_temperature": True,
-                            }
-                        },
-                    }
-                }
-            }
-        )
-    )
-
-    env = {
-        "XDG_CACHE_HOME": str(tmp_path / "cache"),
-        "XDG_CONFIG_HOME": str(tmp_path / "nonexistent"),
-    }
-    with patch.dict(os.environ, env):
-        result = load_models_config(repo_path=None)
-
-    assert "remote-only" not in result.providers
-
-
-def test_load_registry_config_returns_registry_providers(tmp_path: Path) -> None:
-    cache_dir = tmp_path / "kvet"
-    cache_dir.mkdir(parents=True)
-    cache_file = cache_dir / "remote_models.json"
-    cache_file.write_text(_REMOTE_PROVIDER_JSON)
-
-    env = {"XDG_CACHE_HOME": str(tmp_path)}
-    with patch.dict(os.environ, env):
-        result = load_registry_config()
-
-    assert "remote-provider" in result.providers
-
-
-def test_load_registry_config_returns_empty_when_no_cache(tmp_path: Path) -> None:
-    env = {"XDG_CACHE_HOME": str(tmp_path)}
-    with patch.dict(os.environ, env):
-        result = load_registry_config()
-
-    assert result.providers == {}
-
-
-def test_load_registry_config_raises_on_corrupt_cache(tmp_path: Path) -> None:
-    cache_dir = tmp_path / "kvet"
-    cache_dir.mkdir(parents=True)
-    cache_file = cache_dir / "remote_models.json"
-    cache_file.write_text("not valid json at all")
-
-    env = {"XDG_CACHE_HOME": str(tmp_path)}
-    with patch.dict(os.environ, env):
-        with pytest.raises(ConfigLoadError):
-            load_registry_config()
+    assert "vllm" in result
+    assert result["vllm"] == ["local/custom-model"]
 
 
 def _make_provider(base_url: str, model_id: str, api_key_env: str | None = None) -> ProviderConfig:
@@ -600,64 +521,25 @@ def _make_provider(base_url: str, model_id: str, api_key_env: str | None = None)
     )
 
 
-def test_build_config_user_defined_wins_over_builtin_and_registry() -> None:
-    from kvet.imbue_core.agents.configs import OpenAICompatibleModelConfig
-    from kvet.imbue_core.agents.llm_apis.anthropic_api import AnthropicModelName
-
-    builtin_id = AnthropicModelName.CLAUDE_4_6_OPUS.value
-    user_config = ModelsConfig(providers={"custom": _make_provider("http://custom:8080/v1", builtin_id)})
-    registry_config = ModelsConfig(providers={"registry": _make_provider("http://registry:8080/v1", builtin_id)})
-
-    result = build_language_model_config(builtin_id, user_config, registry_config)
-    assert isinstance(result, OpenAICompatibleModelConfig)
-    assert result.custom_base_url == "http://custom:8080/v1"
-
-
-def test_build_config_builtin_wins_over_registry() -> None:
-    from kvet.imbue_core.agents.configs import LanguageModelGenerationConfig
-    from kvet.imbue_core.agents.llm_apis.anthropic_api import AnthropicModelName
-
-    builtin_id = AnthropicModelName.CLAUDE_4_6_OPUS.value
-    user_config = ModelsConfig(providers={})
-    registry_config = ModelsConfig(providers={"registry": _make_provider("http://registry:8080/v1", builtin_id)})
-
-    result = build_language_model_config(builtin_id, user_config, registry_config)
-    assert isinstance(result, LanguageModelGenerationConfig)
-    assert result.model_name == builtin_id
-
-
-def test_build_config_registry_used_for_unknown_model() -> None:
+def test_build_config_returns_openai_compatible_config() -> None:
     from kvet.imbue_core.agents.configs import OpenAICompatibleModelConfig
 
-    user_config = ModelsConfig(providers={})
-    registry_config = ModelsConfig(
-        providers={"registry": _make_provider("http://registry:8080/v1", "registry-only-model")}
-    )
+    user_config = ModelsConfig(providers={"custom": _make_provider("http://localhost:8080/v1", "my-model")})
 
-    result = build_language_model_config("registry-only-model", user_config, registry_config)
+    result = build_language_model_config("my-model", user_config)
     assert isinstance(result, OpenAICompatibleModelConfig)
-    assert result.custom_base_url == "http://registry:8080/v1"
+    assert result.custom_base_url == "http://localhost:8080/v1"
+    assert result.model_name == "my-model"
 
 
-def test_build_config_no_registry_falls_through() -> None:
-    from kvet.imbue_core.agents.configs import LanguageModelGenerationConfig
-
-    user_config = ModelsConfig(providers={})
-    result = build_language_model_config("totally-unknown", user_config)
-    assert isinstance(result, LanguageModelGenerationConfig)
-    assert result.model_name == "totally-unknown"
-
-
-def test_validate_api_key_for_registry_model_passes_when_key_is_set() -> None:
-    user_config = ModelsConfig(providers={})
-    registry_config = ModelsConfig(
+def test_build_config_uses_model_id_override() -> None:
+    user_config = ModelsConfig(
         providers={
-            "registry": ProviderConfig(
-                name="Registry",
-                base_url="http://registry:8080/v1",
-                api_key_env="REGISTRY_API_KEY",
+            "custom": ProviderConfig(
+                base_url="http://localhost:8080/v1",
                 models={
-                    "registry-model": ModelConfig(
+                    "friendly-name": ModelConfig(
+                        model_id="upstream/actual-model",
                         context_window=128000,
                         max_output_tokens=16384,
                         supports_temperature=True,
@@ -667,46 +549,23 @@ def test_validate_api_key_for_registry_model_passes_when_key_is_set() -> None:
         }
     )
 
-    with patch.dict(os.environ, {"REGISTRY_API_KEY": "secret"}):
-        validate_api_key_for_model("registry-model", user_config, registry_config)
+    result = build_language_model_config("friendly-name", user_config)
+    assert result.model_name == "upstream/actual-model"
 
 
-def test_validate_api_key_for_registry_model_raises_when_key_missing() -> None:
+def test_build_config_raises_for_unknown_model() -> None:
     user_config = ModelsConfig(providers={})
-    registry_config = ModelsConfig(
+    with pytest.raises(AssertionError):
+        build_language_model_config("totally-unknown", user_config)
+
+
+def test_get_max_output_tokens_for_user_model() -> None:
+    user_config = ModelsConfig(
         providers={
-            "registry": ProviderConfig(
-                name="Registry",
-                base_url="http://registry:8080/v1",
-                api_key_env="MISSING_REGISTRY_KEY",
+            "user": ProviderConfig(
+                base_url="http://localhost:8080/v1",
                 models={
-                    "registry-model": ModelConfig(
-                        context_window=128000,
-                        max_output_tokens=16384,
-                        supports_temperature=True,
-                    )
-                },
-            )
-        }
-    )
-
-    with patch.dict(os.environ, {}, clear=True):
-        os.environ.pop("MISSING_REGISTRY_KEY", None)
-        with pytest.raises(MissingProviderAPIKeyError) as exc_info:
-            validate_api_key_for_model("registry-model", user_config, registry_config)
-
-        assert exc_info.value.env_var == "MISSING_REGISTRY_KEY"
-        assert exc_info.value.model_id == "registry-model"
-
-
-def test_get_max_output_tokens_for_registry_model() -> None:
-    user_config = ModelsConfig(providers={})
-    registry_config = ModelsConfig(
-        providers={
-            "registry": ProviderConfig(
-                base_url="http://registry:8080/v1",
-                models={
-                    "registry-model": ModelConfig(
+                    "user-model": ModelConfig(
                         context_window=128000,
                         max_output_tokens=32768,
                         supports_temperature=True,
@@ -716,39 +575,11 @@ def test_get_max_output_tokens_for_registry_model() -> None:
         }
     )
 
-    result = get_max_output_tokens_for_model("registry-model", user_config, registry_config)
+    result = get_max_output_tokens_for_model("user-model", user_config)
     assert result == 32768
 
 
-def test_get_max_output_tokens_user_config_wins_over_registry() -> None:
-    user_config = ModelsConfig(
-        providers={
-            "user": ProviderConfig(
-                base_url="http://user:8080/v1",
-                models={
-                    "shared-model": ModelConfig(
-                        context_window=128000,
-                        max_output_tokens=65536,
-                        supports_temperature=True,
-                    )
-                },
-            )
-        }
-    )
-    registry_config = ModelsConfig(
-        providers={
-            "registry": ProviderConfig(
-                base_url="http://registry:8080/v1",
-                models={
-                    "shared-model": ModelConfig(
-                        context_window=128000,
-                        max_output_tokens=16384,
-                        supports_temperature=True,
-                    )
-                },
-            )
-        }
-    )
-
-    result = get_max_output_tokens_for_model("shared-model", user_config, registry_config)
-    assert result == 65536
+def test_get_max_output_tokens_returns_none_for_unknown_model() -> None:
+    user_config = ModelsConfig(providers={})
+    result = get_max_output_tokens_for_model("unknown-model", user_config)
+    assert result is None

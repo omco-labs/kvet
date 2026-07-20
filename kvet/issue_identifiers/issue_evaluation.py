@@ -191,6 +191,10 @@ def evaluate_code_issue_through_llm(
         if inputs.maybe_conversation_history is None:
             return True, ()
 
+    assert config.language_model_generation_config is not None, (
+        "language_model_generation_config is required when filter_issues_through_llm_evaluator is enabled "
+        "(non-agentic mode only)"
+    )
     language_model = build_language_model_from_config(config.language_model_generation_config)
 
     prompt = _format_prompt(issue, project_context, config, inputs, is_code_based_issue, formatted_guide)
@@ -224,7 +228,10 @@ MODEL_CONFIDENCE_THRESHOLD_DEFAULTS: dict[str, float] = {
 
 
 def get_vet_confidence_threshold(config: VetConfig) -> float:
-    model_name = config.language_model_generation_config.model_name
+    # This runs regardless of mode (agentic or not), so language_model_generation_config
+    # may be None (agentic mode); in that case there's no model-specific override to apply.
+    lm_config = config.language_model_generation_config
+    model_name = lm_config.model_name if lm_config is not None else None
 
     if model_name in MODEL_CONFIDENCE_THRESHOLD_DEFAULTS:
         return MODEL_CONFIDENCE_THRESHOLD_DEFAULTS[model_name]

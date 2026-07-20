@@ -1,7 +1,6 @@
 from pathlib import Path
 
 from kvet.imbue_core.agents.configs import LanguageModelGenerationConfig
-from kvet.imbue_core.agents.llm_apis.anthropic_api import AnthropicModelName
 from kvet.imbue_core.data_types import AgentHarnessType
 from kvet.imbue_core.data_types import CustomGuidesConfig
 from kvet.imbue_core.data_types import IssueCode
@@ -30,9 +29,9 @@ class VetConfig(SerializableModel):
     custom_guides_config: CustomGuidesConfig | None = None
 
     # Todo: Different models for different issue identifiers
-    language_model_generation_config: LanguageModelGenerationConfig = LanguageModelGenerationConfig(
-        model_name=AnthropicModelName.CLAUDE_4_8_OPUS
-    )
+    # Required for the non-agentic (API) path; left None in agentic mode, where the
+    # Kiro CLI is the authority on which model to use. No remote default is baked in.
+    language_model_generation_config: LanguageModelGenerationConfig | None = None
     max_identifier_spend_dollars: float | None = None
     max_output_tokens: int = 20000
     enable_parallel_agentic_issue_identification: bool = False
@@ -75,7 +74,7 @@ class VetConfig(SerializableModel):
         cache_full_prompt: bool = False,
     ) -> "VetConfig":
         if not language_model_name:
-            language_model_name = AnthropicModelName.CLAUDE_4_8_OPUS
+            raise ValueError("language_model_name is required to build a VetConfig via VetConfig.build()")
         language_model_generation_config = LanguageModelGenerationConfig(
             model_name=language_model_name,
             cache_path=language_model_cache_path,

@@ -63,6 +63,7 @@ def test_parse_cli_config_from_dict_handles_all_fields() -> None:
             "enabled_issue_codes": ["correctness", "style"],
             "disabled_issue_codes": ["minor"],
             "model": "test-model",
+            "agentic": True,
             "temperature": 0.7,
             "confidence_threshold": 0.85,
             "max_workers": 8,
@@ -86,6 +87,7 @@ def test_parse_cli_config_from_dict_handles_all_fields() -> None:
     assert preset.enabled_issue_codes == ["correctness", "style"]
     assert preset.disabled_issue_codes == ["minor"]
     assert preset.model == "test-model"
+    assert preset.agentic is True
     assert preset.temperature == 0.7
     assert preset.confidence_threshold == 0.85
     assert preset.max_workers == 8
@@ -359,6 +361,7 @@ def test_get_config_preset_raises_on_unknown_with_no_configs(tmp_path: Path) -> 
 def _create_default_args() -> argparse.Namespace:
     return argparse.Namespace(
         model=CLI_DEFAULTS.model,
+        agentic=CLI_DEFAULTS.agentic,
         temperature=CLI_DEFAULTS.temperature,
         confidence_threshold=CLI_DEFAULTS.confidence_threshold,
         max_workers=CLI_DEFAULTS.max_workers,
@@ -436,6 +439,26 @@ def test_apply_config_preset_leaves_defaults_when_preset_is_none() -> None:
     assert result.temperature == 0.0
     assert result.confidence_threshold == 0.8
     assert result.max_workers == 2
+
+
+def test_apply_config_preset_applies_agentic() -> None:
+    args = _create_default_args()
+    preset = CliConfigPreset(agentic=True, model="haiku")
+
+    result = apply_config_preset(args, preset)
+
+    assert result.agentic is True
+    assert result.model == "haiku"
+
+
+def test_merge_presets_merges_agentic() -> None:
+    base = CliConfigPreset(agentic=True, model="haiku")
+    override = CliConfigPreset(model="sonnet")
+
+    result = merge_presets(base, override)
+
+    assert result.agentic is True
+    assert result.model == "sonnet"
 
 
 def test_apply_config_preset_handles_issue_codes() -> None:

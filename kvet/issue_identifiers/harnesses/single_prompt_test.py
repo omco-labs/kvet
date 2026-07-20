@@ -7,6 +7,7 @@ from unittest import mock
 
 import pytest
 
+from kvet.imbue_core.agents.configs import LanguageModelGenerationConfig
 from kvet.imbue_core.agents.llm_apis.data_types import CostedLanguageModelResponse
 from kvet.imbue_core.agents.llm_apis.data_types import LanguageModelGenerationParams
 from kvet.imbue_core.agents.llm_apis.data_types import LanguageModelResponseUsage
@@ -152,7 +153,9 @@ def test_identify_issues_integration() -> None:
             cached_prompt_prefix="[ROLE=SYSTEM]\nSystem context",
         )
         commit_inputs = IdentifierInputs(maybe_goal="Add hello function", maybe_diff="+print('hello')")
-        config = VetConfig()
+        # build_language_model_from_config is mocked above, but identify_issues asserts
+        # language_model_generation_config is set before calling it, so provide one.
+        config = VetConfig(language_model_generation_config=LanguageModelGenerationConfig(model_name="test-model"))
 
         inputs = identifier.to_required_inputs(commit_inputs)
         raw_issues_generator = identifier.identify_issues(inputs, project_context, config)

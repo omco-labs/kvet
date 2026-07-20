@@ -20,8 +20,6 @@ from kvet.cli.config.loader import get_config_preset
 from kvet.cli.config.loader import load_cli_config
 from kvet.cli.config.loader import load_custom_guides_config
 from kvet.cli.config.loader import load_models_config
-from kvet.cli.config.loader import load_registry_config
-from kvet.cli.config.loader import update_remote_registry_cache
 from kvet.cli.config.schema import ModelsConfig
 from kvet.formatters import OUTPUT_FIELDS
 from kvet.formatters import OUTPUT_FORMATS
@@ -151,18 +149,16 @@ def create_parser() -> argparse.ArgumentParser:
         type=str,
         default=CLI_DEFAULTS.model,
         metavar="MODEL",
-        # Hardcoded to avoid importing cli.models at module level (~1s of SDK imports).
-        help="LLM to use for analysis (default: claude-opus-4-8).",
+        help=(
+            "LLM to use for analysis. In agentic mode (the default) the model is passed "
+            "directly to the Kiro CLI; otherwise it must be defined by a localhost provider "
+            "in models.json. If omitted, kvet runs agentically and the Kiro CLI picks its own default."
+        ),
     )
     model_group.add_argument(
         "--list-models",
         action="store_true",
         help="List all available models",
-    )
-    model_group.add_argument(
-        "--update-models",
-        action="store_true",
-        help="Fetch the latest model definitions from the remote registry and cache them locally.",
     )
     model_group.add_argument(
         "--temperature",
@@ -252,8 +248,11 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--agentic",
         action="store_true",
-        default=False,
-        help="Run kvet in agentic mode (uses the Kiro CLI)",
+        default=CLI_DEFAULTS.agentic,
+        help=(
+            "Run kvet in agentic mode (uses the Kiro CLI). This is the default when no "
+            "--model is given; passing a --model defined in models.json selects API mode instead."
+        ),
     )
 
     return parser
@@ -274,34 +273,36 @@ _KIRO_ISSUE_URL = "https://github.com/kirodotdev/Kiro/issues"
 def list_models(
     user_config: ModelsConfig | None = None,
     *,
-    registry_config: ModelsConfig | None = None,
     agentic: bool = False,
 ) -> None:
-    from kvet.cli.models import DEFAULT_MODEL_ID
     from kvet.cli.models import get_models_by_provider
 
     if agentic:
         print("Model listing for agentic mode (kiro harness):")
         print()
-        print(f"  In agentic mode, --model is passed directly to the Kiro CLI.")
-        print(f"  kvet does not know which models the Kiro CLI supports. Some")
-        print(f"  models listed below may not work, and the Kiro CLI may accept models")
-        print(f"  not listed here. If --model is omitted, the Kiro CLI uses its own default.")
+        print("  In agentic mode, --model is passed directly to the Kiro CLI.")
+        print("  kvet does not know which models the Kiro CLI supports. Some")
+        print("  models listed below may not work, and the Kiro CLI may accept models")
+        print("  not listed here. If --model is omitted, the Kiro CLI uses its own default.")
         print()
-        print(f"  If better model listing support would be useful, consider requesting")
-        print(f"  a model listing feature from the Kiro CLI maintainers:")
+        print("  If better model listing support would be useful, consider requesting")
+        print("  a model listing feature from the Kiro CLI maintainers:")
         print(f"    {_KIRO_ISSUE_URL}")
         print()
     else:
-        print("Available models:")
+        print("Available models (localhost providers from models.json):")
         print()
 
-    models_by_provider = get_models_by_provider(user_config, registry_config)
+    models_by_provider = get_models_by_provider(user_config)
+    if not models_by_provider:
+        print("  No localhost providers are configured in models.json.")
     for provider, model_ids in sorted(models_by_provider.items()):
         print(f"  {provider}:")
         for model_id in sorted(model_ids):
-            default_marker = " (default)" if model_id == DEFAULT_MODEL_ID else ""
-            print(f"    {model_id}{default_marker}")
+            print(f"    {model_id}")
+    print()
+    print("Agentic mode (the default) uses the Kiro CLI; --model is passed through to it")
+    print("and the Kiro CLI is the authority on which models it supports.")
 
 
 def list_fields() -> None:
@@ -349,7 +350,17 @@ def _validate_staged_related_options(args: argparse.Namespace, base_commit_cli_s
 
     if args.staged and args.agentic:
         # Sanity check to prevent users from accidentally combining incompatible modes.
+        # Note: this runs before agentic-by-default kicks in, so it only fires when
+        # agentic was explicitly requested (via the flag or a config preset).
         return "kvet: --staged and --agentic are mutually exclusive"
+
+    if args.staged and args.model is None:
+        # --staged requires API mode, which needs an explicit localhost model
+        # (there is no default API model; the default mode is agentic).
+        return (
+            "kvet: --staged requires API mode: pass --model with a model defined by a "
+            "localhost provider in models.json"
+        )
 
     return None
 
@@ -448,18 +459,6 @@ def main(argv: list[str] | None = None) -> int:
     base_commit_cli_specified = any(a == "--base-commit" or a.startswith("--base-commit=") for a in raw_argv)
 
     # Handle subcommands that don't need config loading.
-    if args.update_models:
-        try:
-            cache_path, updated_config = update_remote_registry_cache()
-            model_count = sum(len(p.models) for p in updated_config.providers.values())
-            provider_count = len(updated_config.providers)
-            print(f"Updated model registry ({model_count} models from {provider_count} providers).")
-            print(f"Cache written to {cache_path}")
-        except Exception as e:
-            print(f"kvet: failed to update model registry: {e}", file=sys.stderr)
-            return 1
-        return 0
-
     if args.list_issue_codes:
         list_issue_codes()
         return 0
@@ -480,12 +479,6 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     try:
-        registry_config = load_registry_config()
-    except ConfigLoadError as e:
-        logger.warning("Could not load remote registry: {}", e)
-        registry_config = ModelsConfig(providers={})
-
-    try:
         custom_guides_config = load_custom_guides_config(repo_path)
     except ConfigLoadError as e:
         print(f"kvet: could not load custom guides: {e}", file=sys.stderr)
@@ -494,7 +487,6 @@ def main(argv: list[str] | None = None) -> int:
     if args.list_models:
         list_models(
             user_config,
-            registry_config=registry_config,
             agentic=args.agentic,
         )
         return 0
@@ -539,6 +531,13 @@ def main(argv: list[str] | None = None) -> int:
         print(staged_err, file=sys.stderr)
         return 2
 
+    # Default mode selection: when no --model is given and agentic was not explicitly
+    # requested (flag or preset), run agentically. The model stays None so the Kiro
+    # CLI uses its own default. When --model is given without --agentic, API mode is
+    # selected and the model must resolve to a localhost provider from models.json.
+    if not args.agentic and args.model is None:
+        args.agentic = True
+
     if args.verbose and args.quiet:
         print(
             "kvet: --verbose and --quiet are mutually exclusive",
@@ -571,10 +570,9 @@ def main(argv: list[str] | None = None) -> int:
 
     # Lazy imports: kvet.cli.models transitively imports the LLM SDK provider
     # modules (~1s), so it must NOT be imported at module level. Lightweight
-    # subcommands (--version, --list-issue-codes, --list-fields, --update-models)
+    # subcommands (--version, --list-issue-codes, --list-fields)
     # exit before reaching this point. See startup_time_test.py.
     from kvet.api import find_issues
-    from kvet.cli.models import DEFAULT_MODEL_ID
     from kvet.cli.models import build_language_model_config
     from kvet.cli.models import get_max_output_tokens_for_model
     from kvet.cli.models import validate_api_key_for_model
@@ -633,16 +631,17 @@ def main(argv: list[str] | None = None) -> int:
             enable_deduplication=False,
         )
     else:
-        model_id = args.model or DEFAULT_MODEL_ID
+        model_id = args.model
+        assert model_id is not None  # Guaranteed by the default mode selection above.
 
         try:
-            model_id = validate_model_id(model_id, user_config, registry_config)
+            model_id = validate_model_id(model_id, user_config)
         except ValueError as e:
             print(f"kvet: {e}", file=sys.stderr)
             return 2
 
         try:
-            validate_api_key_for_model(model_id, user_config, registry_config)
+            validate_api_key_for_model(model_id, user_config)
         except Exception as e:
             print(f"kvet: {e}", file=sys.stderr)
             print(
@@ -653,8 +652,8 @@ def main(argv: list[str] | None = None) -> int:
             return 2
 
         # TODO: Support OFFLINE, UPDATE_SNAPSHOT, and MOCKED modes.
-        language_model_config = build_language_model_config(model_id, user_config, registry_config)
-        max_output_tokens = get_max_output_tokens_for_model(model_id, user_config, registry_config)
+        language_model_config = build_language_model_config(model_id, user_config)
+        max_output_tokens = get_max_output_tokens_for_model(model_id, user_config)
 
         config = VetConfig(
             enabled_identifiers=enabled_identifiers,

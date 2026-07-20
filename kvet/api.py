@@ -8,6 +8,7 @@ from pathlib import Path
 
 from loguru import logger
 
+from kvet.imbue_core.agents.llm_apis.constants import approximate_token_count
 from kvet.imbue_core.data_types import IdentifiedVerifyIssue
 from kvet.imbue_core.data_types import IssueIdentificationDebugInfo
 from kvet.imbue_tools.get_conversation_history.get_conversation_history import ConversationLoadingError
@@ -21,6 +22,13 @@ from kvet.issue_identifiers.utils import ReturnCapturingGenerator
 from kvet.repo_utils import VET_MAX_PROMPT_TOKENS
 from kvet.repo_utils import get_code_to_check
 from kvet.vet_types.messages import ConversationMessageUnion
+
+# In agentic mode kvet doesn't know which model the external agent CLI (Kiro) will
+# actually use, so there is no LanguageModelGenerationConfig to consult. These are
+# only used as a project-context sizing heuristic (how much code to include in the
+# snapshot); they are not tied to, and do not imply, any specific remote model.
+_AGENTIC_MODE_MODEL_LABEL = "agentic"
+_AGENTIC_MODE_CONTEXT_WINDOW_ESTIMATE = 200_000
 
 
 def get_issues_with_raw_responses(
@@ -37,34 +45,52 @@ def get_issues_with_raw_responses(
         logger.debug("No goal was provided, generating one from conversation history")
         # should be not None and not empty
         if conversation_history:
-            try:
-                # TODO: we use the config here, but we may want to configure this separately
-                goal = get_goal_from_conversation(conversation_history, config.language_model_generation_config)
-                logger.debug("Generated goal from conversation history: {}", goal)
-            except Exception as e:
-                raise ConversationLoadingError(
-                    f"No goal was provided and generating one from conversation history failed: {e}"
+            if config.language_model_generation_config is None:
+                # Agentic mode: there's no LanguageModelGenerationConfig to derive a goal
+                # with (the Kiro CLI is the authority on models, not kvet). Proceed with
+                # no goal rather than guessing at a remote model to call.
+                logger.debug(
+                    "No language model is configured (agentic mode); skipping goal derivation "
+                    "from conversation history. Pass --goal explicitly if one is needed."
                 )
+                goal = ""
+            else:
+                try:
+                    # TODO: we use the config here, but we may want to configure this separately
+                    goal = get_goal_from_conversation(conversation_history, config.language_model_generation_config)
+                    logger.debug("Generated goal from conversation history: {}", goal)
+                except Exception as e:
+                    raise ConversationLoadingError(
+                        f"No goal was provided and generating one from conversation history failed: {e}"
+                    )
         else:
             # TODO: Consider which CLI options we should show this for (quiet, normal, verbose).
             logger.debug("No goal or conversation history provided, only goal-independent identifiers will run")
             goal = ""
 
     lm_config = config.language_model_generation_config
-    if diff_no_binary:
-        diff_no_binary_tokens = lm_config.count_tokens(diff_no_binary)
+    if lm_config is not None:
+        language_model_name = lm_config.model_name
+        context_window = lm_config.get_max_context_length()
+        is_custom_model = lm_config.is_custom_model()
+        diff_no_binary_tokens = lm_config.count_tokens(diff_no_binary) if diff_no_binary else 0
     else:
-        diff_no_binary_tokens = 0
+        # Agentic mode: size the project context using an approximation instead of a
+        # specific model's tokenizer/context window (see module-level comment above).
+        language_model_name = _AGENTIC_MODE_MODEL_LABEL
+        context_window = _AGENTIC_MODE_CONTEXT_WINDOW_ESTIMATE
+        is_custom_model = True
+        diff_no_binary_tokens = approximate_token_count(diff_no_binary) if diff_no_binary else 0
 
     project_context = LazyProjectContext.build(
         base_commit,
         diff,
-        language_model_name=lm_config.model_name,
+        language_model_name=language_model_name,
         repo_path=repo_path,
         # This needs to account for the kvet prompt, as well as the max_tokens output tokens.
         tokens_to_reserve=VET_MAX_PROMPT_TOKENS + diff_no_binary_tokens + config.max_output_tokens,
-        context_window=lm_config.get_max_context_length(),
-        is_custom_model=lm_config.is_custom_model(),
+        context_window=context_window,
+        is_custom_model=is_custom_model,
     )
 
     if conversation_history:

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 import tomllib
-import urllib.request
 from pathlib import Path
 
 from pydantic import ValidationError
@@ -21,60 +20,11 @@ class ConfigLoadError(Exception):
     pass
 
 
-_REGISTRY_URLS = [
-    "https://raw.githubusercontent.com/omco-labs/kvet/main/registry/models.json",
-]
-_REGISTRY_FETCH_TIMEOUT_SECONDS = 5
-
-
 def get_xdg_config_home() -> Path:
     xdg_config = os.environ.get("XDG_CONFIG_HOME")
     if xdg_config:
         return Path(xdg_config)
     return Path.home() / ".config"
-
-
-def _get_xdg_cache_home() -> Path:
-    xdg_cache = os.environ.get("XDG_CACHE_HOME")
-    if xdg_cache:
-        return Path(xdg_cache)
-    return Path.home() / ".cache"
-
-
-def _get_registry_cache_path() -> Path:
-    return _get_xdg_cache_home() / "kvet" / "remote_models.json"
-
-
-def _fetch_registry(url: str) -> tuple[bytes, ModelsConfig]:
-    req = urllib.request.Request(url, headers={"User-Agent": "kvet"})
-    with urllib.request.urlopen(req, timeout=_REGISTRY_FETCH_TIMEOUT_SECONDS) as resp:
-        data = resp.read()
-    try:
-        config = ModelsConfig.model_validate_json(data)
-    except ValidationError as e:
-        raise ConfigLoadError(f"Remote registry at {url} returned invalid data: {e}") from e
-    return data, config
-
-
-def update_remote_registry_cache() -> tuple[Path, ModelsConfig]:
-    custom_url = os.environ.get("KVET_REGISTRY_URL")
-    urls = [custom_url] if custom_url else _REGISTRY_URLS
-
-    last_exc: Exception | None = None
-    for url in urls:
-        try:
-            data, config = _fetch_registry(url)
-            break
-        except Exception as exc:
-            last_exc = exc
-    else:
-        assert last_exc is not None
-        raise last_exc
-
-    cache_path = _get_registry_cache_path()
-    cache_path.parent.mkdir(parents=True, exist_ok=True)
-    cache_path.write_bytes(data)
-    return cache_path, config
 
 
 def find_git_repo_root(start_path: Path) -> Path | None:
@@ -127,13 +77,6 @@ def load_models_config(repo_path: Path | None = None) -> ModelsConfig:
             merged_providers.update(config.providers)
 
     return ModelsConfig(providers=merged_providers)
-
-
-def load_registry_config() -> ModelsConfig:
-    cache_path = _get_registry_cache_path()
-    if cache_path.exists():
-        return _load_single_config_file(cache_path)
-    return ModelsConfig(providers={})
 
 
 def get_model_ids_from_config(config: ModelsConfig) -> set[str]:

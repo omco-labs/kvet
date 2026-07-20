@@ -147,6 +147,9 @@ def deduplicate_issues(
             yield issue
         return issue_generator_debug_info
 
+    assert (
+        config.language_model_generation_config is not None
+    ), "language_model_generation_config is required when enable_deduplication is enabled (non-agentic mode only)"
     language_model = build_language_model_from_config(config.language_model_generation_config)
 
     # As per above TODO, only deduplicate over issues that passed filtration

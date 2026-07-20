@@ -54,7 +54,9 @@ _OPENAI_COMPATIBLE_STOP_REASON_TO_STOP_REASON: FrozenMapping[str, ResponseStopRe
 # TODO: Should the pre-defined OpenAI model class inherit from this?
 class OpenAICompatibleAPI(LanguageModelAPI):
     model_name: str
-    base_url: str = "https://api.openai.com/v1"
+    # kvet's model policy only allows localhost providers; callers (see
+    # build_apis.py) always pass the provider's validated base_url explicitly.
+    base_url: str = "http://localhost:11434/v1"
     api_key_env: str = "OPENAI_API_KEY"
     context_window: int | None = None
     max_output_tokens: int | None = None

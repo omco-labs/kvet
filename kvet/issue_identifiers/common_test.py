@@ -2,7 +2,10 @@ import json
 from pathlib import Path
 from typing import Iterable
 
+import pytest
+
 from kvet.imbue_core.async_monkey_patches_test import expect_exact_logged_errors
+from kvet.imbue_core.data_types import AgentHarnessType
 from kvet.imbue_core.data_types import IdentifiedVerifyIssue
 from kvet.imbue_core.data_types import IssueCode
 from kvet.imbue_core.frozen_utils import FrozenDict
@@ -14,6 +17,8 @@ from kvet.imbue_tools.repo_utils.project_context import ProjectContext
 from kvet.issue_identifiers.common import GeneratedResponseSchema
 from kvet.issue_identifiers.common import convert_generated_issue_to_identified_issue
 from kvet.issue_identifiers.common import format_issue_identification_guide_for_llm
+from kvet.issue_identifiers.common import get_agent_options
+from kvet.issue_identifiers.common import resolve_kiro_model_alias
 from kvet.issue_identifiers.identification_guides import ISSUE_CODES_FOR_CORRECTNESS_CHECK
 from kvet.issue_identifiers.identification_guides import IssueIdentificationGuide
 
@@ -361,3 +366,33 @@ def test_strips_absolute_filenames() -> None:
     assert issue.description == "Infinite loop detected"
     assert len(issue.location) == 1
     assert issue.location[0].filename == "test.py"
+
+
+@pytest.mark.parametrize(
+    ("alias", "expected"),
+    [
+        ("haiku", "claude-haiku-4.5"),
+        ("sonnet", "claude-sonnet-4.5"),
+        ("opus", "claude-sonnet-4.5"),  # kiro has no opus tier; aliased to its strongest model
+        ("claude-haiku-4.5", "claude-haiku-4.5"),
+        ("some-unknown-model", "some-unknown-model"),
+        (None, None),
+    ],
+)
+def test_resolve_kiro_model_alias(alias: str | None, expected: str | None) -> None:
+    assert resolve_kiro_model_alias(alias) == expected
+
+
+def test_get_agent_options_applies_kiro_aliases() -> None:
+    options = get_agent_options(cwd=None, model_name="haiku", agent_harness_type=AgentHarnessType.KIRO)
+    assert options.model == "claude-haiku-4.5"
+
+
+def test_get_agent_options_passes_unknown_model_through() -> None:
+    options = get_agent_options(cwd=None, model_name="custom-model", agent_harness_type=AgentHarnessType.KIRO)
+    assert options.model == "custom-model"
+
+
+def test_get_agent_options_passes_none_model_through() -> None:
+    options = get_agent_options(cwd=None, model_name=None, agent_harness_type=AgentHarnessType.KIRO)
+    assert options.model is None

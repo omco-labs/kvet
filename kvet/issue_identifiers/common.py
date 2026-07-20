@@ -191,18 +191,48 @@ def convert_to_issue_identifier_result(
     return generator_with_capture.return_value
 
 
+# Friendly aliases for kiro model names, so configs can say e.g. `model = "haiku"`
+# and keep working when kiro renames the underlying model. Unknown names pass
+# through untouched (the Kiro CLI is the authority on which models it supports).
+# NOTE: kiro currently exposes no opus-tier model (verified 2026-07-19), so `opus`
+# maps to the strongest available kiro model; revisit when kiro ships an opus tier.
+KIRO_MODEL_ALIASES: dict[str, str] = {
+    "haiku": "claude-haiku-4.5",
+    "sonnet": "claude-sonnet-4.5",
+    "opus": "claude-sonnet-4.5",
+}
+
+
+def resolve_kiro_model_alias(model_name: str | None) -> str | None:
+    """Map friendly model aliases to concrete kiro model names.
+
+    Unknown names (and ``None``) are returned unchanged.
+    """
+    if model_name is None:
+        return None
+    resolved = KIRO_MODEL_ALIASES.get(model_name)
+    if resolved is None:
+        return model_name
+    if model_name == "opus":
+        logger.info("kiro has no opus model; using {}", resolved)
+    else:
+        logger.debug("Resolved kiro model alias '{}' to '{}'", model_name, resolved)
+    return resolved
+
+
 def get_agent_options(cwd: Path | None, model_name: str | None, agent_harness_type: AgentHarnessType) -> AgentOptions:
     """Build agent options for the given harness type.
 
-    *model_name* is passed through to the underlying CLI as-is.  When ``None``,
-    the CLI will use whatever default the user has configured.  We intentionally
-    do **not** validate or remap the model here — the external CLI is the
+    *model_name* is passed to the underlying CLI after resolving friendly
+    aliases (see ``KIRO_MODEL_ALIASES``).  When ``None``, the CLI will use
+    whatever default the user has configured.  Beyond the alias table we do
+    **not** validate or remap the model here — the external CLI is the
     authority on which models it supports.
     """
     assert agent_harness_type == AgentHarnessType.KIRO, f"Unsupported agent harness type: {agent_harness_type}"
     return KiroOptions(
         cwd=cwd,
-        model=model_name,
+        model=resolve_kiro_model_alias(model_name),
     )
 
 

@@ -32,6 +32,7 @@ class CliConfigPreset(BaseModel):
     enabled_issue_codes: list[str] | None = None
     disabled_issue_codes: list[str] | None = None
     model: str | None = None
+    agentic: bool | None = None
     temperature: float | None = Field(default=None, ge=0.0, le=2.0)
     confidence_threshold: float | None = Field(default=None, ge=0.0, le=1.0)
     max_workers: int | None = Field(default=None, ge=1)
@@ -58,6 +59,7 @@ class CliDefaults(BaseModel):
     enabled_issue_codes: list[str] | None = None
     disabled_issue_codes: list[str] | None = None
     model: str | None = None
+    agentic: bool = False
     temperature: float = 0.0
     confidence_threshold: float = 0.8
     max_workers: int = 2

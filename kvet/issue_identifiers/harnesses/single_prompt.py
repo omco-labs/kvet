@@ -150,6 +150,9 @@ class _SinglePromptIssueIdentifier(IssueIdentifier[CommitInputs]):
         config: VetConfig,
     ) -> Generator[GeneratedIssueSchema, None, IssueIdentificationDebugInfo]:
         prompt = self._get_prompt(project_context, config, identifier_inputs)
+        assert (
+            config.language_model_generation_config is not None
+        ), "language_model_generation_config is required for non-agentic issue identifiers"
         language_model = build_language_model_from_config(config.language_model_generation_config)
         language_model_params = LanguageModelGenerationParams(
             temperature=config.temperature,

@@ -13,9 +13,6 @@ IGNORED_ARGS = {
     "list_models",
     "list_issue_codes",
     "list_fields",
-    # agent-mode flags are intentionally CLI-only
-    "agentic",
-    "update_models",
 }
 
 
