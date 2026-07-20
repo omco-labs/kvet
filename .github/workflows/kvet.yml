@@ -1,3 +1,8 @@
+# DISABLED: this workflow previously ran kvet in API mode against the Anthropic
+# API (ANTHROPIC_API_KEY). Under kvet's model policy, non-agentic (API) mode only
+# supports localhost OpenAI-compatible providers, which are unreachable on GitHub
+# runners, so PR triggers have been removed. Use kvet-agentic.yml instead (it
+# requires the Kiro CLI on the runner). This workflow can only be run manually.
 name: Kvet
 
 permissions:
@@ -5,19 +10,14 @@ permissions:
   pull-requests: write
 
 on:
-  pull_request:
-    types: [opened, edited, synchronize, reopened]
+  workflow_dispatch:
 
 jobs:
   kvet:
-    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
-    env:
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
       - uses: ./
         with:

@@ -17,8 +17,8 @@
 
 - **Reviews intent and code**: checks agent conversations for goal adherence and code changes for correctness.
 - **Runs anywhere**: from the terminal, as an agent skill, or in CI.
-- **Bring-your-own-model**: works with any provider using your own API keys.
-- **Works with your Kiro subscription**: routes analysis through the Kiro CLI using [`--agentic`](#usage).
+- **Works with your Kiro subscription**: routes analysis through the Kiro CLI (agentic mode, the default).
+- **Local models welcome**: alternatively, bring your own OpenAI-compatible server running on localhost (e.g. Ollama, vLLM). Remote API providers are not supported.
 - **Free and open source**: no account, fees, or data collection. Requests go directly to your inference provider. Licensed under the AGPL-3.0.
 
 ## Using Kvet with Coding Agents
@@ -73,25 +73,42 @@ The `--history-loader` option executes the specified shell command as the curren
 
 ## Install the CLI
 
+Kvet is **not published on PyPI**; install it from this repository.
+
+With [uv](https://docs.astral.sh/uv/):
+
 ```bash
-pip install kvet
+uv tool install git+https://github.com/omco-labs/kvet.git@main
 ```
 
 Or with [pipx](https://pipx.pypa.io/):
 
 ```bash
-pipx install kvet
+pipx install git+https://github.com/omco-labs/kvet.git@main
 ```
 
-Or with [uv](https://docs.astral.sh/uv/):
+Or from a local checkout (uses the current branch):
 
 ```bash
-uv tool install kvet
+git clone https://github.com/omco-labs/kvet.git
+cd kvet
+./install.sh
 ```
+
+`install.sh` runs `uv tool install --from <repo-root> kvet --reinstall` (falling back to pipx/pip), then prints the installed binary path and `kvet --version`.
+
+### Coexisting with vet
+
+Kvet fully coexists with upstream [vet](https://github.com/imbue-ai/vet) on the same host:
+
+- Separate binaries: `kvet` vs `vet` (separate uv tool/pipx venvs).
+- Separate config/cache/state paths: `~/.config/kvet`, `~/.cache/kvet`, and `~/.local/state/kvet` vs the `vet` equivalents.
+
+Both tools can be installed and used side by side without interfering with each other.
 
 ### Usage
 
-Run Kvet in the current repo:
+Run Kvet in the current repo (agentic mode via the Kiro CLI is the default):
 
 ```bash
 kvet "Implement X without breaking Y"
@@ -103,13 +120,13 @@ Compare against a base ref/commit:
 kvet "Refactor storage layer" --base-commit main
 ```
 
-Use the Kiro CLI instead of LLM APIs:
+`--model` is forwarded to the Kiro CLI. Model IDs come from `kiro-cli chat --list-models` (e.g. `claude-haiku-4.5` for a cheaper judge than the default `auto`). The friendly aliases `haiku`, `sonnet`, and `opus` are mapped to concrete kiro models for you (kiro currently has no opus tier, so `opus` resolves to the strongest available model with an info log).
+
+To use a localhost OpenAI-compatible server instead of the Kiro CLI, define the model in `models.json` (see [Model configuration](#model-configuration)) and pass it explicitly:
 
 ```bash
-kvet "Implement X without breaking Y" --agentic
+kvet "Implement X without breaking Y" --model qwen3-coder
 ```
-
-In agentic mode, `--model` is forwarded to the Kiro CLI. Model IDs come from `kiro-cli chat --list-models` (e.g. `claude-haiku-4.5` for a cheaper judge than the default `auto`).
 
 ## GitHub PRs (Actions)
 
@@ -132,19 +149,15 @@ jobs:
   kvet:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
-    env:
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
       - uses: omco-labs/kvet@main
-        with:
-          agentic: false
 ```
 
-The action handles Python setup, kvet installation, merge base computation, and posting the review to the PR. `ANTHROPIC_API_KEY` must be set as a repository secret when using Anthropic models (the default). Agentic mode requires the Kiro CLI to be installed and authenticated on the runner. See [`action.yml`](https://github.com/omco-labs/kvet/blob/main/action.yml) for all available inputs.
+The action handles Python setup, kvet installation (from this repository, not PyPI), merge base computation, and posting the review to the PR. The action defaults to agentic mode, which requires the Kiro CLI to be installed and authenticated on the runner; the action does not install it. Localhost model providers are generally unreachable on CI runners. See [`action.yml`](https://github.com/omco-labs/kvet/blob/main/action.yml) for all available inputs.
 
 ## How it works
 
@@ -166,7 +179,12 @@ Output formats:
 
 ### Model configuration
 
-Kvet supports custom model definitions using OpenAI-compatible endpoints via JSON config files searched in:
+Kvet only allows two model sources:
+
+1. **The Kiro CLI** (agentic mode, the default) — `--model` is passed through to `kiro-cli`.
+2. **Localhost OpenAI-compatible servers** (API mode) — model definitions from JSON config files. Every provider's `base_url` must point at `localhost`, `127.0.0.1`, or `[::1]`; remote API providers are rejected at config-load time.
+
+JSON config files are searched in:
 
 - `$XDG_CONFIG_HOME/kvet/models.json` (or `~/.config/kvet/models.json`)
 - `.kvet/models.json` at your repo root
@@ -176,20 +194,12 @@ Kvet supports custom model definitions using OpenAI-compatible endpoints via JSO
 ```json
 {
   "providers": {
-    "openrouter": {
-      "name": "OpenRouter",
+    "local": {
+      "name": "Local OpenAI-compatible server",
       "api_type": "openai_compatible",
-      "base_url": "https://openrouter.ai/api/v1",
-      "api_key_env": "OPENROUTER_API_KEY",
+      "base_url": "http://localhost:11434/v1",
       "models": {
-        "gpt-5.2": {
-          "model_id": "openai/gpt-5.2",
-          "context_window": 400000,
-          "max_output_tokens": 128000,
-          "supports_temperature": true
-        },
-        "kimi-k2": {
-          "model_id": "moonshotai/kimi-k2",
+        "qwen3-coder": {
           "context_window": 131072,
           "max_output_tokens": 32768,
           "supports_temperature": true
@@ -203,25 +213,8 @@ Kvet supports custom model definitions using OpenAI-compatible endpoints via JSO
 Then:
 
 ```bash
-kvet "Harden error handling" --model gpt-5.2
+kvet "Harden error handling" --model qwen3-coder
 ```
-
-### Model registry
-
-Kvet maintains a remote model registry with community-contributed model definitions. To fetch the latest definitions without upgrading kvet:
-
-```bash
-kvet --update-models
-```
-
-This downloads model definitions from the [registry](https://github.com/omco-labs/kvet/blob/main/registry/models.json) and caches them locally at `~/.cache/kvet/remote_models.json`. Once cached, registry models appear in `kvet --list-models` and can be used with `--model` like any other model.
-
-Model resolution priority (highest to lowest):
-1. User config (`.kvet/models.json` or `~/.config/kvet/models.json`)
-2. Builtin models (Anthropic, OpenAI, Gemini)
-3. Registry models (cached via `--update-models`)
-
-See [`registry/CONTRIBUTING.md`](https://github.com/omco-labs/kvet/blob/main/registry/CONTRIBUTING.md) for information about contributing model definitions to the registry.
 
 ### Configuration profiles (TOML)
 

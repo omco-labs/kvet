@@ -6,7 +6,10 @@ For general usage, installation, and configuration, see the [README](README.md).
 
 ### On your host machine
 
-Ensure you have [uv](https://docs.astral.sh/uv/getting-started/installation/) installed, and that you have the correct env variables set to run Kvet (Kvet defaults to Anthropic models so this means you should have your ANTHROPIC_API_KEY set).
+Ensure you have [uv](https://docs.astral.sh/uv/getting-started/installation/) installed. To actually run analyses you also need at least one of:
+
+- the Kiro CLI (`kiro-cli`) installed and authenticated (agentic mode, the default), and/or
+- a localhost OpenAI-compatible server (e.g. Ollama, vLLM) with matching entries in `models.json` (API mode).
 
 Then run:
 
@@ -20,7 +23,7 @@ You can use the `Containerfile` in `dev/` at the repo root to create a container
 
 #### Setup
 
-Create a `.env` file at the repo root with your API keys. The recommended keys are `ANTHROPIC_API_KEY` and `OPENAI_API_KEY`.
+No API keys are required. If your localhost model server needs an API key, create a `.env` file at the repo root with the environment variable referenced by the provider's `api_key_env` in `models.json`.
 
 #### Running Kvet in a Container
 
@@ -96,9 +99,9 @@ Based on your needs, instead of the above, you can also extend one of the existi
 In that case you would simply expand the rubric in the prompt. That is actually the preferred way to catch issues at the moment due to efficiency.
 Refer to the source code for more details.
 
-### Model registry
+### Model policy
 
-The `registry/models.json` file contains model definitions distributed via the `--update-models` CLI option. See [`registry/CONTRIBUTING.md`](registry/CONTRIBUTING.md) for expectations about what models should be added to the registry.
+Kvet only allows two model sources: the Kiro CLI (agentic mode, the default) and localhost OpenAI-compatible providers defined in `models.json`. Remote API providers are rejected at config-load time by a validator on `ProviderConfig.base_url` (see `kvet/cli/config/schema.py`).
 
 ## CI / CD
 
@@ -116,8 +119,8 @@ Current workflows:
 
 - `test-unit.yml` (`Test / Unit`, job: `unit`) — pytest suite (lint + unit tests)
 - `test-pkgbuild.yml` (`Test / PKGBUILD`, job: `pkgbuild`) — Arch Linux package build + smoke test
-- `kvet.yml` (`Kvet`, job: `kvet`) — Self-review via kvet on PRs (uses the reusable action via `uses: ./`)
-- `kvet-agentic.yml` (`Kvet (Agentic)`, job: `kvet`) — Agentic self-review via kvet on PRs (uses the reusable action via `uses: ./`)
+- `kvet.yml` (`Kvet`, job: `kvet`) — Disabled (manual trigger only): API-mode self-review requires a localhost model server, which is unavailable on GitHub runners
+- `kvet-agentic.yml` (`Kvet (Agentic)`, job: `kvet`) — Agentic self-review via kvet on PRs (uses the reusable action via `uses: ./`); requires the Kiro CLI on the runner
 - `publish-pypi.yml` (`Publish / PyPI`, job: `pypi`) — Build and publish to PyPI on tag push
 - `publish-github-release.yml` (`Publish / GitHub Release`, job: `github-release`) — Create a GitHub Release on tag push
 

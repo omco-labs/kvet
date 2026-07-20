@@ -8,9 +8,9 @@ branding:
 
 inputs:
   agentic:
-    description: "Enable agentic mode (uses the Kiro CLI, which must be available on the runner)"
+    description: "Enable agentic mode (uses the Kiro CLI, which must be available on the runner). Default: true. Non-agentic (API) mode requires a localhost OpenAI-compatible model server, which is generally unreachable on CI runners."
     required: false
-    default: "false"
+    default: "true"
   model:
     description: "LLM model to use"
     required: false
@@ -52,7 +52,7 @@ inputs:
     required: false
     default: "false"
   build-from-source:
-    description: "Build and install kvet from the checked-out source tree instead of PyPI"
+    description: "Build and install kvet from the checked-out source tree instead of the GitHub repository (kvet is not published on PyPI)"
     required: false
     default: "false"
 
@@ -70,10 +70,11 @@ runs:
     - name: Install kvet
       shell: bash
       run: |
+        # kvet is not published on PyPI; install from source or from this repository.
         if [[ "${{ inputs.build-from-source }}" == "true" ]]; then
           pip install .
         else
-          pip install kvet
+          pip install "git+https://github.com/omco-labs/kvet.git@main"
         fi
 
     - name: Run kvet

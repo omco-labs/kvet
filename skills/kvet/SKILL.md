@@ -13,21 +13,23 @@ Kvet is a standalone fork of [vet](https://github.com/imbue-ai/vet), specialized
 
 ## Installation
 
-Install kvet using pip, pipx, or uv:
+Kvet is not published on PyPI; install it from the GitHub repository:
 
 ```bash
-# Using pip
-pip install kvet
+# Using uv
+uv tool install git+https://github.com/omco-labs/kvet.git@main
 
 # Using pipx
-pipx install kvet
+pipx install git+https://github.com/omco-labs/kvet.git@main
 
-# Using uv
-uv tool install kvet
+# From a local checkout (installs from the current branch)
+./install.sh
 
 # Verify installation:
 kvet --help
 ```
+
+Kvet coexists with upstream `vet`: separate binaries, separate tool venvs, and separate config/cache/state paths (`~/.config/kvet`, `~/.cache/kvet`, `~/.local/state/kvet`).
 
 ## Running Kvet
 
@@ -66,14 +68,13 @@ Kvet analyzes the full git diff from the base commit. This may include changes f
 ## Common Options
 
 - `--base-commit REF`: Git ref for diff base (default: HEAD)
-- `--model MODEL`: LLM to use (default: claude-opus-4-8)
-- `--list-models`: list all models that are supported by kvet
-    - Run `kvet --help` and look at the kvet repo's readme for details about defining custom OpenAI-compatible models.
-- `--update-models`: fetch the latest community model definitions from the remote registry and cache them locally. See "Updating the Model Registry" below for when to run this.
+- `--model MODEL`: LLM to use. By default kvet runs agentically and the Kiro CLI picks its own default model (`auto`). In agentic mode `--model` is forwarded to the Kiro CLI; model IDs come from `kiro-cli chat --list-models` (e.g. `claude-haiku-4.5` for a cheaper judge). The aliases `haiku`, `sonnet`, and `opus` are mapped to concrete kiro models (kiro has no opus tier, so `opus` resolves to the strongest available model).
+- `--list-models`: list localhost provider models defined in models.json (plus a note about agentic mode)
+    - Run `kvet --help` and look at the kvet repo's readme for details about defining localhost OpenAI-compatible models.
 - `--confidence-threshold N`: Minimum confidence 0.0-1.0 (default: 0.8)
 - `--output-format FORMAT`: Output as `text`, `json`, or `github`
 - `--quiet`: Suppress status messages and 'No issues found.'
-- `--agentic`: Mode that routes analysis through the locally installed Kiro CLI instead of calling the API directly. Try this if kvet fails due to missing API keys. This is slower so it is not the default, but it often results in higher precision issue identification. `--model` is forwarded to the Kiro CLI but not validated by kvet, as kvet doesn't know which models the Kiro CLI supports. Model IDs come from `kiro-cli chat --list-models` (e.g. `claude-haiku-4.5` for a cheaper judge than the default `auto`).
+- `--agentic`: Routes analysis through the locally installed Kiro CLI. This is the default mode; the flag exists to force agentic mode when you also pass a `--model` name that kvet would otherwise try to resolve as a localhost API model. API mode is the localhost opt-in: passing `--model` with a model defined in `models.json` (localhost OpenAI-compatible providers only; remote providers are rejected) runs kvet against that local server instead of the Kiro CLI.
 - `--help`: Show comprehensive list of options
 
 
@@ -82,15 +83,6 @@ Kvet analyzes the full git diff from the base commit. This may include changes f
 The kvet CLI, skill files, and export scripts can become outdated as agent harnesses and LLM APIs change.
 
 If this happens, try updating them. Run `which kvet` to determine how kvet was installed and update accordingly. For the skill files, check which skill directories exist on disk and update them with the latest versions from https://github.com/omco-labs/kvet/tree/main/skills/kvet.
-
-### Updating the Model Registry
-
-Run `kvet --update-models` to fetch the latest community model definitions from the remote registry without upgrading kvet itself. This caches model definitions locally so they appear in `--list-models` and can be used with `--model`.
-
-You should run `kvet --update-models` when:
-- Kvet reports an unknown or unrecognized model error.
-- `kvet --list-models` does not show a model you or the user expects to be available.
-- The user explicitly asks you to update the model registry.
 
 ## Additional Information
 
