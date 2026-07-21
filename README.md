@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://github.com/omco-labs/kvet">
-    <img alt="Kvet" src="https://raw.githubusercontent.com/imbue-ai/vet/main/images/Vet.svg" width="21%">
+    <img alt="Kvet" src="https://raw.githubusercontent.com/omco-labs/kvet/main/images/kVet.svg" width="21%">
   </a>
 </p>
 
