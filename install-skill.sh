@@ -13,8 +13,8 @@ echo ""
 echo "  Kvet Skill Installer"
 echo "  --------------------"
 echo ""
-echo "  [1] Project level  - install into the current repo (.agents/ and .kiro/)"
-echo "  [2] User level     - install into your home directory (~/.agents/ and ~/.kiro/)"
+echo "  [1] Project level  - install into the current repo (.kiro/)"
+echo "  [2] User level     - install into your home directory (~/.kiro/)"
 echo ""
 
 printf "  Choose [1/2]: "
@@ -22,11 +22,11 @@ read -r choice </dev/tty
 
 case "$choice" in
   1)
-    dirs=(".agents" ".kiro")
+    dirs=(".kiro")
     label="project"
     ;;
   2)
-    dirs=("$HOME/.agents" "$HOME/.kiro")
+    dirs=("$HOME/.kiro")
     label="user"
     ;;
   *)

@@ -25,7 +25,7 @@
 
 Kvet includes an agent skill. When installed, agents will proactively run kvet after code changes to find issues with the new code and mismatches between the user's request and the agent's actions.
 
-### Install the skill
+### Install the SKILL
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/omco-labs/kvet/main/install-skill.sh | bash
@@ -33,39 +33,33 @@ curl -fsSL https://raw.githubusercontent.com/omco-labs/kvet/main/install-skill.s
 
 You will be prompted to choose between:
 
-- **Project level**: installs into `.agents/skills/kvet/` and `.kiro/skills/kvet/` at the repo root (run from your repo directory)
-- **User level**: installs into `~/.agents/` and `~/.kiro/` skill directories, discovered globally
+- **Project level**: installs into `.kiro/skills/kvet/` at the repo root (run from your repo directory)
+- **User level**: installs into `~/.kiro/` skill directory, discovered globally
 
-<details>
-<summary>Manual installation</summary>
+### Manual installation
 
-#### Project Level
+##### Project Level SKILL
 
 From the root of your git repo:
 
 ```bash
-for dir in .agents .kiro; do
-  mkdir -p "$dir/skills/kvet/scripts"
-  for file in SKILL.md scripts/export_kiro_session.py; do
-    curl -fsSL "https://raw.githubusercontent.com/omco-labs/kvet/main/skills/kvet/$file" \
-      -o "$dir/skills/kvet/$file"
-  done
+mkdir -p .kiro/skills/kvet/scripts
+for file in SKILL.md scripts/export_kiro_session.py; do
+  curl -fsSL "https://raw.githubusercontent.com/omco-labs/kvet/main/skills/kvet/$file" \
+    -o ".kiro/skills/kvet/$file"
 done
 ```
 
-#### User Level
+##### User Level SKILL
 
 ```bash
-for dir in ~/.agents ~/.kiro; do
-  mkdir -p "$dir/skills/kvet/scripts"
-  for file in SKILL.md scripts/export_kiro_session.py; do
-    curl -fsSL "https://raw.githubusercontent.com/omco-labs/kvet/main/skills/kvet/$file" \
-      -o "$dir/skills/kvet/$file"
-  done
+mkdir -p ~/.kiro/skills/kvet/scripts
+for file in SKILL.md scripts/export_kiro_session.py; do
+  curl -fsSL "https://raw.githubusercontent.com/omco-labs/kvet/main/skills/kvet/$file" \
+    -o ~/.kiro/skills/kvet/$file
 done
 ```
 
-</details>
 
 ### Security note
 
@@ -128,37 +122,6 @@ To use a localhost OpenAI-compatible server instead of the Kiro CLI, define the 
 kvet "Implement X without breaking Y" --model qwen3-coder
 ```
 
-## GitHub PRs (Actions)
-
-Kvet reviews pull requests using a reusable GitHub Action.
-
-Create `.github/workflows/kvet.yml`:
-
-```yaml
-name: Kvet
-
-permissions:
-  contents: read
-  pull-requests: write
-
-on:
-  pull_request:
-    types: [opened, edited, synchronize, reopened]
-
-jobs:
-  kvet:
-    if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 0
-      - uses: omco-labs/kvet@main
-```
-
-The action handles Python setup, kvet installation (from this repository, not PyPI), merge base computation, and posting the review to the PR. The action defaults to agentic mode, which requires the Kiro CLI to be installed and authenticated on the runner; the action does not install it. Localhost model providers are generally unreachable on CI runners. See [`action.yml`](https://github.com/omco-labs/kvet/blob/main/action.yml) for all available inputs.
-
 ## How it works
 
 Kvet snapshots the repo and diff, optionally adds a goal and agent conversation, runs LLM checks, then filters/deduplicates findings into a final list of issues.
@@ -199,9 +162,10 @@ JSON config files are searched in:
       "api_type": "openai_compatible",
       "base_url": "http://localhost:11434/v1",
       "models": {
-        "qwen3-coder": {
+        "granite4.1-8b": {
+		  "model_id": "granite4.1-8b",
           "context_window": 131072,
-          "max_output_tokens": 32768,
+          "max_output_tokens": 2048,
           "supports_temperature": true
         }
       }
@@ -213,7 +177,7 @@ JSON config files are searched in:
 Then:
 
 ```bash
-kvet "Harden error handling" --model qwen3-coder
+kvet "Harden error handling" --model granite4.1-8b
 ```
 
 ### Configuration profiles (TOML)

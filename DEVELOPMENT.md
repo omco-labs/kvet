@@ -133,10 +133,9 @@ The `/` in display names creates visual grouping in the GitHub Actions UI. Group
 
 Current workflows:
 
-- `test-unit.yml` (`Test / Unit`, job: `unit`) — pytest suite (lint + unit tests)
+- `test-unit.yml` (`Test / Unit`, job: `unit`) — lint (isort, black, ruff) + pytest suite
+- `test-security.yml` (`Test / Security`, job: `security`) — Trivy scan for dependency CVEs, secrets, and misconfigurations
 - `test-pkgbuild.yml` (`Test / PKGBUILD`, job: `pkgbuild`) — Arch Linux package build + smoke test
-- `kvet.yml` (`Kvet`, job: `kvet`) — Disabled (manual trigger only): API-mode self-review requires a localhost model server, which is unavailable on GitHub runners
-- `kvet-agentic.yml` (`Kvet (Agentic)`, job: `kvet`) — Agentic self-review via kvet on PRs (uses the reusable action via `uses: ./`); requires the Kiro CLI on the runner
 - `publish-pypi.yml` (`Publish / PyPI`, job: `pypi`) — Build and publish to PyPI on tag push
 - `publish-github-release.yml` (`Publish / GitHub Release`, job: `github-release`) — Create a GitHub Release on tag push
 
