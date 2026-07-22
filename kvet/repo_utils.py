@@ -2,7 +2,6 @@ import re
 from pathlib import Path
 
 from kvet.errors import GitCommandError
-from kvet.errors import GitException
 from kvet.errors import RunCommandError
 from kvet.git import SyncLocalGitRepo
 from kvet.git import find_relative_to_commit_hash

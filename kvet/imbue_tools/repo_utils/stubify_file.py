@@ -1,7 +1,6 @@
 """From https://github.com/OpenAutoCoder/Agentless/blob/main/agentless/util/compress_file.py"""
 
 import re
-from typing import Any
 from typing import Callable
 
 import libcst as cst

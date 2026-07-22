@@ -12,7 +12,7 @@ simple_test_git_repo = pytest.fixture(make_simple_test_git_repo)
 # This fixture must be defined locally (not imported) because of the autouse flag.
 @pytest.fixture(autouse=True)
 def always_explode_on_error(
-    explode_on_error: Callable[[], Generator[None, None, None]],
+    explode_on_error: Callable[[], Generator[None, None, None]],  # noqa: F811
 ) -> Generator[None, None, None]:
     """
     Ensures that we do not log errors or exceptions during testing.

@@ -58,7 +58,13 @@ Run formatting hooks manually across the repo:
 uvx pre-commit run --all-files
 ```
 
-After installation, `isort` and `black` run automatically on staged Python files before each commit.
+After installation, `isort`, `black`, and `ruff check` run automatically on staged Python files before each commit.
+
+To run the same checks manually across the whole repo:
+
+```bash
+./dev/lint.sh
+```
 
 ## Running Tests
 
@@ -71,6 +77,16 @@ uv run pytest
 ```
 
 This command should be preserved the sole way to run unit tests.
+
+## Security Scanning
+
+Dependency, secret, and misconfiguration scanning is done with [Trivy](https://trivy.dev/):
+
+```bash
+./dev/security-scan.sh
+```
+
+This is the same check the `Test / Security` CI workflow runs (fails on CRITICAL/HIGH findings). If it flags a vulnerable dependency, prefer upgrading via `uv lock --upgrade-package <name>` over ignoring the finding.
 
 ## Concepts
 

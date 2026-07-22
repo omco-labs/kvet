@@ -4,8 +4,6 @@ from tempfile import NamedTemporaryFile
 from typing import Generator
 from typing import Iterator
 
-import pytest
-
 
 @contextlib.contextmanager
 def create_temp_file(contents: str, suffix: str, root_dir: Path) -> Generator[Path, None, None]:

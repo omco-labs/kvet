@@ -10,7 +10,6 @@ from typing import Any
 from typing import Generator
 
 import jinja2
-from loguru import logger
 
 from kvet.imbue_core.agents.agent_api.data_types import AgentMessage
 from kvet.imbue_core.agents.agent_api.data_types import AgentOptions
