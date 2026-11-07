@@ -13,4 +13,4 @@ confidence_threshold = 0.7
 [high-precision]
 confidence_threshold = 0.7
 agentic = true
-model = "opus"           # kiro has no opus tier today; aliased to its strongest model (claude-sonnet-4.5)
+model = "opus"           # kiro claude-opus-5.5 via alias

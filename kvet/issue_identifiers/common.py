@@ -194,12 +194,12 @@ def convert_to_issue_identifier_result(
 # Friendly aliases for kiro model names, so configs can say e.g. `model = "haiku"`
 # and keep working when kiro renames the underlying model. Unknown names pass
 # through untouched (the Kiro CLI is the authority on which models it supports).
-# NOTE: kiro currently exposes no opus-tier model (verified 2026-07-19), so `opus`
-# maps to the strongest available kiro model; revisit when kiro ships an opus tier.
+# Targets are the models listed by `kiro-cli chat --list-models` (verified 2026-11-07,
+# Kiro CLI 3.0.0).
 KIRO_MODEL_ALIASES: dict[str, str] = {
     "haiku": "claude-haiku-4.5",
-    "sonnet": "claude-sonnet-4.5",
-    "opus": "claude-sonnet-4.5",
+    "sonnet": "claude-sonnet-5.5",
+    "opus": "claude-opus-5.5",
 }
 
 
@@ -213,10 +213,7 @@ def resolve_kiro_model_alias(model_name: str | None) -> str | None:
     resolved = KIRO_MODEL_ALIASES.get(model_name)
     if resolved is None:
         return model_name
-    if model_name == "opus":
-        logger.info("kiro has no opus model; using {}", resolved)
-    else:
-        logger.debug("Resolved kiro model alias '{}' to '{}'", model_name, resolved)
+    logger.debug("Resolved kiro model alias '{}' to '{}'", model_name, resolved)
     return resolved
 
 

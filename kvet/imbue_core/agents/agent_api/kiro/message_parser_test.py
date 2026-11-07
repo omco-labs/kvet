@@ -1,3 +1,5 @@
+import pytest
+
 from kvet.imbue_core.agents.agent_api.data_types import AgentAssistantMessage
 from kvet.imbue_core.agents.agent_api.data_types import AgentResultMessage
 from kvet.imbue_core.agents.agent_api.data_types import AgentSystemEventType
@@ -220,6 +222,30 @@ class TestParseUnknown:
             "jsonrpc": "2.0",
             "method": "_kiro.dev/subagent/list_update",
             "params": {"subagents": [], "pendingStages": []},
+        }
+        assert parse_kiro_message(data) is None
+
+    def test_v3_private_kiro_notification_returns_none(self) -> None:
+        data = {"jsonrpc": "2.0", "method": "_kiro/mcp/status", "params": {"sessionId": "sess_1", "servers": []}}
+        assert parse_kiro_message(data) is None
+
+    @pytest.mark.parametrize(
+        "kind", ["session_info_update", "available_commands_update", "current_mode_update", "config_option_update"]
+    )
+    def test_bookkeeping_session_update_kinds_return_none(self, kind: str) -> None:
+        data = {
+            "jsonrpc": "2.0",
+            "method": "session/update",
+            "params": {"sessionId": "sess_1", "update": {"sessionUpdate": kind}},
+        }
+        assert parse_kiro_message(data) is None
+
+    def test_server_request_returns_none(self) -> None:
+        data = {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "session/request_permission",
+            "params": {"sessionId": "sess_1", "options": []},
         }
         assert parse_kiro_message(data) is None
 

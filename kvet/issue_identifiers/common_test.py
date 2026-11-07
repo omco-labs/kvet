@@ -372,8 +372,8 @@ def test_strips_absolute_filenames() -> None:
     ("alias", "expected"),
     [
         ("haiku", "claude-haiku-4.5"),
-        ("sonnet", "claude-sonnet-4.5"),
-        ("opus", "claude-sonnet-4.5"),  # kiro has no opus tier; aliased to its strongest model
+        ("sonnet", "claude-sonnet-5.5"),
+        ("opus", "claude-opus-5.5"),
         ("claude-haiku-4.5", "claude-haiku-4.5"),
         ("some-unknown-model", "some-unknown-model"),
         (None, None),

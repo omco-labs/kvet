@@ -12,6 +12,20 @@ from kvet.imbue_core.agents.agent_api.data_types import AgentToolResultBlock
 from kvet.imbue_core.agents.agent_api.data_types import AgentToolUseBlock
 from kvet.imbue_core.agents.agent_api.data_types import AgentUnknownMessage
 
+_KIRO_PRIVATE_METHOD_PREFIXES = ("_kiro.dev/", "_kiro/")
+
+# "session/update" kinds that carry only UI/bookkeeping state (session title and context
+# usage, slash-command lists, mode and config changes) and nothing kvet consumes. Dropped
+# so they don't surface as AgentUnknownMessage.
+_IGNORED_SESSION_UPDATE_KINDS = frozenset(
+    {
+        "session_info_update",
+        "available_commands_update",
+        "current_mode_update",
+        "config_option_update",
+    }
+)
+
 
 def parse_kiro_message(data: dict[str, Any]) -> AgentMessage | None:
     """Parse a single JSON-RPC line from `kiro-cli acp` into a normalized AgentMessage.
@@ -21,9 +35,15 @@ def parse_kiro_message(data: dict[str, Any]) -> AgentMessage | None:
     turn's terminal response (identified by "stopReason" in its result) are
     intentionally not turned into messages here -- the client handles both directly
     since it needs to correlate them with request ids and, for the terminal
-    response, with accumulated response text. Kiro-private "_kiro.dev/*"
-    notifications are dropped.
+    response, with accumulated response text. Kiro-private notifications
+    ("_kiro.dev/*" on the v2 engine, "_kiro/*" on v3) and bookkeeping
+    "session/update" kinds are dropped. Requests from the agent (which carry both
+    an "id" and a "method"; e.g. "session/request_permission") are answered by
+    the client and produce no message here.
     """
+    if "method" in data and "id" in data:
+        return None
+
     if "id" in data:
         if "result" in data:
             return _parse_response(data.get("result", {}), data)
@@ -35,7 +55,7 @@ def parse_kiro_message(data: dict[str, Any]) -> AgentMessage | None:
     if method == "session/update":
         return _parse_session_update(data)
 
-    if method.startswith("_kiro.dev/"):
+    if method.startswith(_KIRO_PRIVATE_METHOD_PREFIXES):
         return None
 
     return AgentUnknownMessage(raw=data, original_message=data)
@@ -56,6 +76,9 @@ def _parse_response(result: dict[str, Any], data: dict[str, Any]) -> AgentMessag
 def _parse_session_update(data: dict[str, Any]) -> AgentMessage | None:
     update = data.get("params", {}).get("update", {})
     kind = update.get("sessionUpdate", "")
+
+    if kind in _IGNORED_SESSION_UPDATE_KINDS:
+        return None
 
     if kind == "agent_message_chunk":
         text = update.get("content", {}).get("text", "")

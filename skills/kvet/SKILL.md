@@ -53,13 +53,22 @@ kvet "goal"
 
 ### Finding Your Session
 
-**Kiro CLI:** Session transcripts are stored in `~/.kiro/sessions/cli/<session-uuid>.jsonl`. To find the correct session:
-1. Run: `kiro-cli chat --list-sessions --format json` to list recent sessions grouped by working directory, each with a `sessionId`, `title`, and `updatedAt`.
-2. Identify the current session from the group matching the current working directory by matching the title or most recent timestamp.
-    - IMPORTANT: Verify the session you found matches the current conversation. If the title is ambiguous, compare timestamps or check multiple candidates.
-3. Pass the matched `sessionId` as `--session-id`. If `--list-sessions` is unavailable, fall back to a manual search: find the most unique sentence in the current conversation, run `grep -rl "UNIQUE_MESSAGE" ~/.kiro/sessions/cli/` to find the matching `.jsonl` file, and pass its path via `--session-file`.
+**Kiro CLI:** The export script reads both transcript formats the Kiro CLI writes:
+- v3 engine (the default in Kiro CLI 3.x): `~/.kiro/sessions/<workspace-hash>/sess_<uuid>/messages.jsonl`
+- v2 engine: `~/.kiro/sessions/cli/<uuid>.jsonl`
+
+To find the correct session:
+1. Run: `kiro-cli chat --list-sessions --format json` to list recent sessions for the current working directory, each with a `sessionId`, `title`, `updatedAt`, and `source` (`v3` or `v2`).
+2. Identify the current session by matching the title or most recent timestamp.
+    - IMPORTANT: Verify the session you found matches the current conversation. If the title is ambiguous, compare timestamps or check multiple candidates. Sessions created by previous kvet runs also appear in this list; skip those (their first message starts with "You are analyzing a code repository").
+3. Pass the matched `sessionId` as `--session-id`. Both `sess_<uuid>` and bare `<uuid>` forms work; the script finds the file for you.
+4. If `--list-sessions` is unavailable, fall back to a manual search: find the most unique sentence in the current conversation, run `grep -rl "UNIQUE_MESSAGE" ~/.kiro/sessions/` to find the matching `.jsonl` file, and pass its path via `--session-file` (the format is auto-detected).
 
 NOTE: The examples in the standard usage section assume the user installed the kvet skill at the user level, not the project level. Prior to trying to run kvet, check if it was installed at the project level which should take precedence over the user level. If it is installed at the project level, ensure the history-loader option points to the correct location.
+
+## Kiro CLI Engine
+
+Kvet works with both the Kiro CLI v3 engine (default) and the v2 engine. Set `KVET_KIRO_ENGINE=v2` to force v2 if v3 misbehaves. Kvet needs Kiro CLI 3.0 or newer for the default v3 engine.
 
 ## Interpreting Results
 
@@ -68,7 +77,7 @@ Kvet analyzes the full git diff from the base commit. This may include changes f
 ## Common Options
 
 - `--base-commit REF`: Git ref for diff base (default: HEAD)
-- `--model MODEL`: LLM to use. By default kvet runs agentically and the Kiro CLI picks its own default model (`auto`). In agentic mode `--model` is forwarded to the Kiro CLI; model IDs come from `kiro-cli chat --list-models` (e.g. `claude-haiku-4.5` for a cheaper judge). The aliases `haiku`, `sonnet`, and `opus` are mapped to concrete kiro models (kiro has no opus tier, so `opus` resolves to the strongest available model).
+- `--model MODEL`: LLM to use. By default kvet runs agentically and the Kiro CLI picks its own default model. In agentic mode `--model` is forwarded to the Kiro CLI; model IDs come from `kiro-cli chat --list-models` (e.g. `claude-haiku-4.5` for a cheaper judge). The aliases `haiku`, `sonnet`, and `opus` are mapped to `claude-haiku-4.5`, `claude-sonnet-5.5`, and `claude-opus-5.5`.
 - `--list-models`: list localhost provider models defined in models.json (plus a note about agentic mode)
     - Run `kvet --help` and look at the kvet repo's readme for details about defining localhost OpenAI-compatible models.
 - `--confidence-threshold N`: Minimum confidence 0.0-1.0 (default: 0.8)

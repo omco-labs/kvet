@@ -114,7 +114,9 @@ Compare against a base ref/commit:
 kvet "Refactor storage layer" --base-commit main
 ```
 
-`--model` is forwarded to the Kiro CLI. Model IDs come from `kiro-cli chat --list-models` (e.g. `claude-haiku-4.5` for a cheaper judge than the default `auto`). The friendly aliases `haiku`, `sonnet`, and `opus` are mapped to concrete kiro models for you (kiro currently has no opus tier, so `opus` resolves to the strongest available model with an info log).
+`--model` is forwarded to the Kiro CLI. Model IDs come from `kiro-cli chat --list-models` (e.g. `claude-haiku-4.5` for a cheaper judge than the Kiro CLI's default model). The friendly aliases `haiku`, `sonnet`, and `opus` are mapped to `claude-haiku-4.5`, `claude-sonnet-5.5`, and `claude-opus-5.5`.
+
+Kvet drives `kiro-cli acp` and supports both the Kiro CLI v3 agent engine (the default) and the v2 engine. To fall back to v2, set `KVET_KIRO_ENGINE=v2`. On v3, kvet approves the agent's tool-permission requests once each (the equivalent of `--trust-all-tools` on v2) and sets the model and agent mode over ACP, because the v3 engine rejects the `--trust-all-tools`, `--model` and `--agent` flags.
 
 To use a localhost OpenAI-compatible server instead of the Kiro CLI, define the model in `models.json` (see [Model configuration](#model-configuration)) and pass it explicitly:
 

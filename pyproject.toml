@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kvet"
-version = "0.1.0"
+version = "0.2.0"
 description = "Kiro-only LLM-based code review tool that finds issues tests and linters miss (standalone fork of imbue-ai/vet)"
 readme = "README.md"
 license = "AGPL-3.0-only"
